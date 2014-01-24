@@ -27,6 +27,22 @@ IP = "NaoCRIC.local"
 # Nao's standard port.
 port = 9559
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+    def disable(self):
+        self.HEADER = ''
+        self.OKBLUE = ''
+        self.OKGREEN = ''
+        self.WARNING = ''
+        self.FAIL = ''
+        self.ENDC = ''
+
 
 class followTheLineModule(ALModule):
     """docstring for followTheLineModule"""
@@ -35,11 +51,10 @@ class followTheLineModule(ALModule):
         global myBroker
         print "[INFO ] 'followTheLineModule' initializing..."
         
-        self.infrared = ALProxy("ALInfrared")
         # Create an ALTextToSpeech proxy.
         self.tts = ALProxy("ALTextToSpeech")
         self.tts.setLanguage("french")
-        self.tts.setVolume(0.6)
+        self.tts.setVolume(0.3)
         print "[INFO ] Subscribed to an ALTextToSpeech proxy"
         # Create an ALMotion proxy.
         self.motion = ALProxy("ALMotion")
@@ -56,7 +71,7 @@ class followTheLineModule(ALModule):
         print "[INFO ] Subscribed to an ALVideoDevice proxy"
         # Register a video module.
         colorSpace = vision_definitions.kBGRColorSpace
-        fps = 1
+        fps = 5
         camera = 1 # 1 = bas / 0 = haut.
 
         self.nameId = self.camProxy.subscribeCamera("getLineModule",
@@ -68,7 +83,7 @@ class followTheLineModule(ALModule):
 
         print "[INFO ] 'followTheLineModule' initialized"
 
-        self.tts.say("Je suis prêt !")
+        self.tts.say("Je suis ton esclave, Impératrice, fais-moi ce que tu veux !")
         self.NaoFollowsTheLine()
 
     # Get an image from Nao camera.
@@ -154,7 +169,7 @@ class followTheLineModule(ALModule):
 
         averageX = sumX/(2*len(vectors))
 
-        print "[INFO ] Average position of line:", averageXY
+        print "[INFO ] Average position of line:", averageX
         
         # Correction of a positive/negative degres problem.
         for angle in xrange(0,len(vectors)):
@@ -169,6 +184,10 @@ class followTheLineModule(ALModule):
             average = angleSum/len(vectors)
 
         print "[INFO ] Line direction (degres):", average
+
+        # Get value in radian to give Nao a direction.
+        direction = average - 90
+        direction = direction*np.pi/180
 
         # ################### Trajectory Correction Module ################### #
 
@@ -185,25 +204,27 @@ class followTheLineModule(ALModule):
         imgCenter = imgWidth/2
         length = averageX - imgCenter
 
-        if (averageX < (imgCenter - imgWidth*0.1)):
+        if (averageX < (imgCenter - imgWidth*0.15)):
             # Nao is on the right of the line.
             print "[WARNING ] Nao is on the right of the line"
-            if (average > 90):
-                average = -average # Objective: get Nao back on the line.
-            elif (average < 90):
-                average = 90
-        elif (averageX > (imgCenter - imgWidth*0.1)):
+            direction = -0.1
+            # if (direction > 0):
+            #     direction = -direction # Objective: get Nao back on the line.
+            # elif (direction < 0):
+            #     direction = 0
+        elif (averageX > (imgCenter + imgWidth*0.15)):
             # Nao is on the left of the line.
             print "[WARNING ] Nao is on the left of the line"
-            if (average < 90):
-                average = -average # Objective: get Nao back on the line.
-            elif (average > 90):
-                average = 90
+            direction = 0.1
+            # if (direction < 0):
+            #     direction = -direction # Objective: get Nao back on the line.
+            # elif (direction > 0):
+            #     direction = 0
 
         # ############################## End of ############################## #
         # ################### Trajectory Correction Module ################### #
 
-        return average
+        return direction
 
         
     # Get Nao following the line.
@@ -217,31 +238,27 @@ class followTheLineModule(ALModule):
                         print "[INFO ] Nao should walk"
                         self.leds.randomEyes(0.5)
                         self.leds.on("FaceLeds")
-                        # Get the angle of the white line (90º is in front of
-                        # Nao, <90º on the right, >90º on the left).
                         direction = self.getDirectionFromVectors(self.lines)
 
-                        # Get value in radian to give Nao a direction.
-                        direction = direction - 90
-                        direction = direction*np.pi/180
                         print "[INFO ] Direction (radian):", direction
 
-                        self.motion.post.angleInterpolation(["HeadYaw"],
-                                                            -direction,
-                                                            1,
-                                                            True)
+                        # self.motion.post.angleInterpolation(["HeadYaw"],
+                        #                                     -direction,
+                        #                                     1,
+                        #                                     True)
 
                         self.motion.moveTo(0.4, 0, direction)
 
                         print "[INFO ] Nao is walking following the line :)"
 
                 except AttributeError:
+                    self.tts.say("Oh oui ! Fais-moi mal !")
                     print "[WARNING ] No line to follow: Nao stopped!"
-                    self.tts.say("Je ne trouve pas la ligne...")
+                    self.tts.say("Je ne trouve pas la ligne")
                     self.leds.rotateEyes(0xff0000, 1, 1)
                     self.motion.killMove()
 
-                time.sleep(1)
+                time.sleep(0.2)
 
         except KeyboardInterrupt:
             print "[INFO ] Interrupted by user, shutting down"
@@ -256,7 +273,7 @@ class followTheLineModule(ALModule):
             self.camProxy.unsubscribe("getLineModule")
             print "[INFO ] Camera unsubscribed"
             self.leds.on("FaceLeds")
-            self.tts.say("Je suis prêt à reprendre le travail quand tu veux !")
+            self.tts.say("Je suis prêt à reprendre le travail quand tu veux, Impératrice !")
             myBroker.shutdown()
             print "[INFO ] Broker unsubscribed"
             print "[NAO IS IDLE ]"
