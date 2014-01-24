@@ -11,7 +11,7 @@ from naoqi import ALProxy
 from naoqi import ALBroker
 from naoqi import ALModule
 
-from vision_definitions import *
+import vision_definitions
 
 from optparse import OptionParser
 
@@ -19,6 +19,7 @@ from optparse import OptionParser
 myBroker = None
 followTheLine = None
 memory = None
+definition = vision_definitions.k4VGA
 
 
 # Nao's domain name.
@@ -32,9 +33,9 @@ class followTheLineModule(ALModule):
     def __init__(self, name):
         ALModule.__init__(self, name)
         global myBroker
-
         print "[INFO ] 'followTheLineModule' initializing..."
         
+        self.infrared = ALProxy("ALInfrared")
         # Create an ALTextToSpeech proxy.
         self.tts = ALProxy("ALTextToSpeech")
         self.tts.setLanguage("french")
@@ -54,15 +55,15 @@ class followTheLineModule(ALModule):
         self.camProxy = ALProxy("ALVideoDevice")
         print "[INFO ] Subscribed to an ALVideoDevice proxy"
         # Register a video module.
-        colorSpace = kBGRColorSpace
+        colorSpace = vision_definitions.kBGRColorSpace
         fps = 1
         camera = 1 # 1 = bas / 0 = haut.
 
         self.nameId = self.camProxy.subscribeCamera("getLineModule",
-                                                camera,
-                                                kVGA,
-                                                colorSpace,
-                                                fps)
+                                                    camera,
+                                                    definition,
+                                                    colorSpace,
+                                                    fps)
         print "[INFO ] Subscribed to Camera 1"
 
         print "[INFO ] 'followTheLineModule' initialized"
@@ -134,14 +135,26 @@ class followTheLineModule(ALModule):
 
     def getDirectionFromVectors(self, coordinates):
         vectors = []
+        sumX = 0
 
         # Get vectors coordinates instead of points coordinates.
         print "[INFO ] Converting coordinates in vectors"
         for x1,y1,x2,y2 in coordinates[0]:
+            # Compute vector's coordinates.
             y = y2-y1
             x = x2-x1
             vectors.append(np.arctan2(y, x)*360/(2*np.pi))
+
+            # Add coordinates of points to compute average position of them to
+            # know where is the line for Nao.
+            sumX += x1
+            sumX += x2
+
         print "[INFO ] Converted coordinates in vectors"
+
+        averageX = sumX/(2*len(vectors))
+
+        print "[INFO ] Average position of line:", averageXY
         
         # Correction of a positive/negative degres problem.
         for angle in xrange(0,len(vectors)):
@@ -155,7 +168,40 @@ class followTheLineModule(ALModule):
             angleSum += vectors[angle]
             average = angleSum/len(vectors)
 
-        print "[INFO ] Direction (degres):", average
+        print "[INFO ] Line direction (degres):", average
+
+        # ################### Trajectory Correction Module ################### #
+
+        # Compute direction Nao need to take to get the line.
+        global definition
+        # Get image definition.
+        if (definition == 3):
+            imgWidth = 1280
+        elif (definition ==2):
+            imgWidth = 640
+        else:
+            print "[ERROR ] Definition unknown!"
+
+        imgCenter = imgWidth/2
+        length = averageX - imgCenter
+
+        if (averageX < (imgCenter - imgWidth*0.1)):
+            # Nao is on the right of the line.
+            print "[WARNING ] Nao is on the right of the line"
+            if (average > 90):
+                average = -average # Objective: get Nao back on the line.
+            elif (average < 90):
+                average = 90
+        elif (averageX > (imgCenter - imgWidth*0.1)):
+            # Nao is on the left of the line.
+            print "[WARNING ] Nao is on the left of the line"
+            if (average < 90):
+                average = -average # Objective: get Nao back on the line.
+            elif (average > 90):
+                average = 90
+
+        # ############################## End of ############################## #
+        # ################### Trajectory Correction Module ################### #
 
         return average
 
@@ -184,6 +230,7 @@ class followTheLineModule(ALModule):
                                                             -direction,
                                                             1,
                                                             True)
+
                         self.motion.moveTo(0.4, 0, direction)
 
                         print "[INFO ] Nao is walking following the line :)"
