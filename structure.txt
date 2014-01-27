@@ -1,0 +1,21 @@
+mainVolume
+myBroker
+definition
+direction
+imgNao
+
+interruptProgram(reason)
+
+class logs
+	display()
+
+class RefreshCam
+	run()
+	stop()
+
+class getDirectionFromLine
+
+class followTheLineModule
+	run()
+
+main()
