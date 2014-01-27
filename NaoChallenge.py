@@ -29,13 +29,14 @@ port = 9559
 
 
 # Class to log events.
-class logs:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    ERROR = '\033[91m'
-    ENDC = '\033[0m'
+class logs(object):
+    def __init__(self):
+        self.HEADER = '\033[95m'
+        self.OKBLUE = '\033[94m'
+        self.OKGREEN = '\033[92m'
+        self.WARNING = '\033[93m'
+        self.ERROR = '\033[91m'
+        self.ENDC = '\033[0m'
 
     def disable(self):
         self.HEADER = ''
@@ -62,6 +63,8 @@ class followTheLineModule(ALModule):
     def __init__(self, name):
         ALModule.__init__(self, name)
         global myBroker
+        self.logs = logs()
+
         self.logs.display("Initializing module...")
         
         # Create an ALTextToSpeech proxy.
@@ -111,9 +114,9 @@ class followTheLineModule(ALModule):
     # Get an image from Nao camera.
     def readNaoCam(self):
         # Get image.
-        #imgNao = camProxy.getImageLocal(nameId)
-        imgNAO = self.camProxy.getImageRemote(self.nameId)
-        self.camProxy.releaseImage(self.nameId)
+        #imgNao = camProxy.getImageLocal(self.followTheLineCam)
+        imgNAO = self.camProxy.getImageRemote(self.followTheLineCam)
+        self.camProxy.releaseImage(self.followTheLineCam)
         self.logs.display("Got an image from Camera 1")
 
         # lire les parametres
@@ -186,7 +189,7 @@ class followTheLineModule(ALModule):
 
         # Compute the position of the line.
         averageX = sumX/(2*len(vectors))
-        self.logs.display("Average position of line:", "Default", averageX)
+        self.logs.display("Average position of line:", "Default", str(averageX))
         
         # Correction of a positive/negative degres problem.
         for angle in xrange(0,len(vectors)):
@@ -199,7 +202,7 @@ class followTheLineModule(ALModule):
             angleSum += vectors[angle]
             average = angleSum/len(vectors)
 
-        self.logs.display("Line direction (degres):", "Default", average)
+        self.logs.display("Line direction (degres):", "Default", str(average))
 
         # Get value in radian to give Nao a direction.
         direction = average - 90
@@ -228,7 +231,7 @@ class followTheLineModule(ALModule):
             direction = -0.1
         elif (averageX > (imgCenter + imgWidth*0.15)):
             # Nao is on the left of the line.
-            self.logs.display("[WARNING ] Nao is on the left of the line", "Warning")
+            self.logs.display("Nao is on the left of the line", "Warning")
             direction = 0.1
 
         # ############################## End of ############################## #
@@ -249,7 +252,7 @@ class followTheLineModule(ALModule):
                         self.leds.on("FaceLeds")
                         direction = self.getDirectionFromVectors(self.lines)
 
-                        self.logs.display( "[INFO ] Direction (radian):", direction
+                        self.logs.display("Direction (radian):", "Default", str(direction))
 
                         # self.motion.post.angleInterpolation(["HeadYaw"],
                         #                                     -direction,
@@ -273,7 +276,7 @@ class followTheLineModule(ALModule):
 
     def interruptProgram(self, reason="User"):
         if (reason == "User"):
-            self.logs.display("Interrupted by user, shutting down", "Error")
+            self.logs.display("Interrupted by user, shutting down", "Good")
         elif (reason == "Error"):
             self.logs.display("Fatal error, shutting down", "Error")
             
@@ -287,7 +290,7 @@ class followTheLineModule(ALModule):
         self.motion.setStiffnesses("Body", 0.0)
         self.logs.display("Motors shot down")
         
-        self.camProxy.unsubscribe("getLineModule")
+        self.camProxy.unsubscribe("followTheLineCam")
         self.logs.display("Camera unsubscribed")
         
         self.leds.on("FaceLeds")
@@ -295,7 +298,7 @@ class followTheLineModule(ALModule):
         myBroker.shutdown()
 
         self.logs.display("Broker unsubscribed")
-        print "[ NAO IS IDLE ]"
+        self.logs.display("NAO IS IDLE", "Good")
         sys.exit(0)
 
 
