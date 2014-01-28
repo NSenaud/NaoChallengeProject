@@ -68,21 +68,21 @@ class logs(object):
     # Display a colored message on computer's terminal.
     def display(self, message, logType="Default", additionalMessage=" "):
         if ((logType == "Default") or (logType == 3)):
-            print self.OKBLUE  + "[ INFO ]"    + self.ENDC
-                + message
-                + additionalMessage
+            print self.OKBLUE  + "[ INFO ]"    + self.ENDC,
+            print message,
+            print additionalMessage
         elif ((logType == "Good") or (logType == 2)):
-            print self.OKGREEN + "[ INFO ]"    + self.ENDC
-                + message
-                + additionalMessage
+            print self.OKGREEN + "[ INFO ]"    + self.ENDC,
+            print message,
+            print additionalMessage
         elif ((logType == "Warning") or (logType == 1)):
-            print self.WARNING + "[ WARNING ]" + self.ENDC
-                + message
-                + additionalMessage
+            print self.WARNING + "[ WARNING ]" + self.ENDC,
+            print message,
+            print additionalMessage
         elif ((logType == "Error") or (logType == 0)):
-            print self.ERROR   + "[ ERROR ]"   + self.ENDC
-                + message
-                + additionalMessage
+            print self.ERROR   + "[ ERROR ]"   + self.ENDC,
+            print message,
+            print additionalMessage
 
 # ############################### END OF CLASS ############################## #
 
