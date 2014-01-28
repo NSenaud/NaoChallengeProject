@@ -1,70 +1,62 @@
 #!/usr/bin/env python
 # -*- coding:Utf-8 -*-
 
+# ########################################################################### #
+# #                   Nao Challenge 2014 Main Program                       # #
+# ########################################################################### #
+# # Creation:   2014-01-20                                                  # #
+# #                                                                         # #
+# # Team:       IUT de Cachan                                               # #
+# #                                                                         # #
+# # Authors:    Nicolas SENAUD                                              # #
+# #             Pierre-Guillaume LEGUAY                                     # #
+# #             Nicolas SAREMBAUD                                           # #
+# #                                                                         # #
+# ########################################################################### #
+
 import sys
 import time
-import cv2              # OpenCV: Visual recognition library.
-import numpy as np      # Numpy:  Maths library.
+import numpy as np                  # Numpy:  Maths library.
+import cv2                          # OpenCV: Visual recognition library.
+import vision_definitions           # Image definitions macros.
 
-# ---*** nao libraries ***---
+from threading import Thread        # Multithreading librairy.
+from optparse import OptionParser   # Parser to keep connexion with Nao.
+
+# Nao's libraries.
 from naoqi import ALProxy
 from naoqi import ALBroker
 from naoqi import ALModule
 
-# Image definitions macros.
-import vision_definitions
-
-from optparse import OptionParser
-from threading import Thread
-
 
 # Constants:
-mainVolume = 0.3
+IP = "NaoCRIC.local"                 # Nao's domain name.
+port = 9559                          # Nao's standard port.
+mainVolume = 0.3                     # Volume of Nao's voice.
+definition = vision_definitions.kVGA # Definition of cam's pictures & videos.
 
-NaoShouldWalk = None
-getDirectionFromLineThread = None
-NaoWalksThread = None
-RefreshCamThread = None
-myBroker = None
-followTheLine = None
-memory = None
-# Definition of the cam.
-definition = vision_definitions.kVGA
-# Direction (in radian) Nao should follow.
-direction = 0
-# Current image from the cam:
-imgNAO = None
+# Threads declaration to avoid errors:
+RefreshCamThread = None             # Thead which look after cam's picts.
+getDirectionFromLineThread = None   # Trajectory computation thread.
+NaoWalksThread = None               # Nao walk control thread.
+followTheLine = None                # Main thread with main loop.
 
+# Global objects:
+myBroker = None                     # Broker to keep connexion with Nao.
+memory = None                       # A memory object to recall events.
 
-# Nao's domain name.
-IP = "NaoCRIC.local"
-# Nao's standard port.
-port = 9559
+# Global variables:
+NaoShouldWalk = None                # Does Nao have a direction to follow?
+imgNAO = None                       # Current image from the cam.
+direction = 0                       # Direction (in radian) Nao should follow.
 
 
 
-def interruptProgram(self, reason="Error"):
-    self.logs = logs()
+# ######################### CLASS TO LOG EVENTS ############################# #
 
-    if (reason == "User"):
-        self.logs.display("Interrupted by user, shutting down", "Good")
-    elif (reason == "Error"):
-        self.logs.display("Fatal error, shutting down", "Error")
-    
-    global RefreshCamThread
-    RefreshCamThread.delete()
-    global NaoWalksThread
-    NaoWalksThread.delete()
-    global getDirectionFromLineThread
-    getDirectionFromLineThread.delete()
-    global followTheLine
-    followTheLine.delete()
-
-
-
-# Class to log events.
 class logs(object):
     def __init__(self):
+        # Colors definition with ASCII extended codes.
         self.HEADER = '\033[95m'
         self.OKBLUE = '\033[94m'
         self.OKGREEN = '\033[92m'
@@ -73,17 +65,30 @@ class logs(object):
         self.ENDC = '\033[0m'
 
 
+    # Display a colored message on computer's terminal.
     def display(self, message, logType="Default", additionalMessage=" "):
         if ((logType == "Default") or (logType == 3)):
-            print self.OKBLUE + "[ INFO ]" + self.ENDC + message + additionalMessage
+            print self.OKBLUE  + "[ INFO ]"    + self.ENDC
+                + message
+                + additionalMessage
         elif ((logType == "Good") or (logType == 2)):
-            print self.OKGREEN + "[ INFO ]" + self.ENDC + message + additionalMessage
+            print self.OKGREEN + "[ INFO ]"    + self.ENDC
+                + message
+                + additionalMessage
         elif ((logType == "Warning") or (logType == 1)):
-            print self.WARNING + "[ WARNING ]" + self.ENDC + message + additionalMessage
+            print self.WARNING + "[ WARNING ]" + self.ENDC
+                + message
+                + additionalMessage
         elif ((logType == "Error") or (logType == 0)):
-            print self.ERROR + "[ ERROR ]" + self.ENDC + message + additionalMessage
+            print self.ERROR   + "[ ERROR ]"   + self.ENDC
+                + message
+                + additionalMessage
+
+# ############################### END OF CLASS ############################## #
 
 
+
+# ########################## CLASS TO REFRESH CAM ########################### #
 
 class RefreshCam(ALModule, Thread):
     """docstring for NaoWalks"""
@@ -91,47 +96,45 @@ class RefreshCam(ALModule, Thread):
         Thread.__init__(self)
         ALModule.__init__(self, name)
 
-        global imgNAO
-        global myBroker
-        
         # Create new object to get logs on computer's terminal.
         self.logs = logs()
 
         # Create an ALVideoDevice proxy.
         self.camProxy = ALProxy("ALVideoDevice")
-        self.logs.display("Subscribed to an ALVideoDevice proxy")
+        self.logs.display("Subscribed to an ALVideoDevice proxy", "Good")
 
         # Register a video module.
         colorSpace = vision_definitions.kBGRColorSpace
         fps = 1
-        camera = 1      # 1 = low / 0 = high.
-
-        self.followTheLineCam = self.camProxy.subscribeCamera("followTheLineCam",
+        camera = 1      # 1 = mouth camera / 0 = front camera.
+        self.followTheLineCam = self.camProxy.subscribeCamera("LowCam",
                                                               camera,
                                                               definition,
                                                               colorSpace,
                                                               fps)
-        self.logs.display("Subscribed to Camera 1")
+        self.logs.display("Subscribed to Camera 1", "Good")
 
 
+    # Method called by the Thread.start() method.
     def run(self):
-        try:
-            # Get image.
-            #imgNao = camProxy.getImageLocal(self.followTheLineCam)
-            while True:
-                global imgNAO
-                imgNAO = self.camProxy.getImageRemote(self.followTheLineCam)
-                self.camProxy.releaseImage(self.followTheLineCam)
-                self.logs.display("Got an image from Camera 1")
+        while True:
+            global imgNAO
+            # Get the image.
+            imgNAO = self.camProxy.getImageRemote(self.followTheLineCam)
+            self.camProxy.releaseImage(self.followTheLineCam)
+            self.logs.display("Received a picture from Camera 1")
 
-        except KeyboardInterrupt:
-            interruptProgram("User")
 
+    # Method called to properly delete the thread.
     def delete(self):
-        self.camProxy.unsubscribe("followTheLineCam")
-        self.logs.display("Camera unsubscribed")
+        self.camProxy.unsubscribe("LowCam")
+        self.logs.display("Camera unsubscribed", "Good")
+
+# ############################### END OF CLASS ############################## #
 
 
+
+# ###################### CLASS TO COMPUTE A DIRECTION ####################### #
 
 class getDirectionFromLine(ALModule, Thread):
     """docstring for getDirection"""
@@ -139,28 +142,16 @@ class getDirectionFromLine(ALModule, Thread):
         Thread.__init__(self)
         ALModule.__init__(self, name)
 
-        self.lines = None
-        
-        global myBroker
-        global direction
+        self.lines = None                  # Lines found by OpenCV on picts.
 
-        # Create new object to get logs on computer's terminal.
+        # Create new object display a colored message on computer's terminal.
         self.logs = logs()
 
-        # Create new thread to refresh cam.
-        global RefreshCamThread
-        if (RefreshCamThread is None):
-            RefreshCamThread = RefreshCam("RefreshCam")
-        # Start thread.
-        if (RefreshCamThread is not None and RefreshCamThread.isAlive()):
-            pass
-        else:
-            RefreshCamThread.start()
 
-
+    # Find white line(s) on pict and save points' coordinates.
     def getVectorsCoordinates(self):
         global imgNAO
-        img = imgNAO
+        img = imgNAO                        # Get the last pict from cam.
 
         try:
             # Read parameters.
@@ -169,49 +160,57 @@ class getDirectionFromLine(ALModule, Thread):
             channels = img[2]
             imgsrc = img[6]
 
-            # « magic » conversion to OpenCV.
-            img = np.fromstring(imgsrc, dtype="uint8").reshape(height, width, channels)
-            self.logs.display("Image converted")
+            # « magical » conversion to OpenCV.
+            img = np.fromstring(imgsrc, dtype="uint8").reshape(height,
+                                                               width,
+                                                               channels)
+            self.logs.display("Cam's pict converted for OpenCV")
 
             # Conversions for color (white) detection.
             hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
             # White detection.
-            self.logs.display("Adding white filter")
             lower_white = np.array([0, 0, 255])
             upper_white = np.array([255,255,255])
             white = cv2.inRange(hsv_img, lower_white, upper_white)
             # Filter white on original.
             img = cv2.bitwise_and(img, img, mask=white)
+            self.logs.display("[ OpenCV ] Added 'white only' filter")
 
             # Conversions for lines detection.
-            self.logs.display("Adding lines-finder filter")
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             edges = cv2.Canny(gray, 30, 180, apertureSize=3)
 
             # Line detection.
             minLineLength = 100000
             maxLineGap = 5
-            self.lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength, maxLineGap)
+            self.lines = cv2.HoughLinesP(edges,
+                                         1,
+                                         np.pi/180,
+                                         100,
+                                         minLineLength,
+                                         maxLineGap)
+            self.logs.display("[ OpenCV ] Added 'lines finder' filter")
 
             # Write lines on image return.
             try:
                 if self.lines.any():
-                    self.logs.display("At least one line have been detected")
                     for x1,y1,x2,y2 in self.lines[0]:
                         cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
 
-            except AttributeError:
-                self.logs.display("No line detected!", "Warning")
-        except TypeError:
-            pass
+                    self.logs.display("At least one line have been found",
+                                      "Good")
 
-        except KeyboardInterrupt:
-            interruptProgram("User")
+            except AttributeError:
+                self.logs.display("No line have been found!", "Warning")
+        
+        except TypeError:
+            self.logs.display("No pict received from cam!", "Warning")
         
 
-
+    # Find direction of vectors from points' coordinates.
     def getDirectionFromVectors(self):
+        global direction
         coordinates = self.lines
         vectors = []
         sumX = 0
@@ -224,16 +223,18 @@ class getDirectionFromLine(ALModule, Thread):
                 x = x2-x1
                 vectors.append(np.arctan2(y, x)*360/(2*np.pi))
 
-                # Add coordinates of points to compute average position of them to
-                # know where is the line for Nao.
+                # Add coordinates of points to compute average position of
+                # them to know where is the line for Nao.
                 sumX += x1
                 sumX += x2
 
-            self.logs.display("Converted coordinates in vectors")
+            self.logs.display("Converted line(s)' coordinates in vectors")
 
-            # Compute the position of the line.
+            # Compute the average position of the line.
             averageX = sumX/(2*len(vectors))
-            self.logs.display("Average position of line:", "Default", str(averageX))
+            self.logs.display("Average position of line:",
+                              "Default",
+                              str(averageX))
             
             # Correction of a positive/negative degres problem.
             for angle in xrange(0,len(vectors)):
@@ -246,40 +247,52 @@ class getDirectionFromLine(ALModule, Thread):
                 angleSum += vectors[angle]
                 average = angleSum/len(vectors)
 
-            self.logs.display("Line direction (degres):", "Default", str(average))
+            if (average > 85 or average < 95):
+                self.logs.display("Line direction (degres):",
+                                  "Default",
+                                  str(average))
 
             # Get value in radian to give Nao a direction.
             direction = average - 90
             direction = direction*np.pi/180
 
-            # ################### Trajectory Correction Module ################### #
+            # ################ Trajectory Correction Module ################# #
+            # # Version : 1.1                                               # #
+            # # Quality : 2/10                                              # #
+            # ############################################################### #
 
             # Compute direction Nao need to take to get the line.
             global definition
-
             # Get image definition.
             if (definition == 3):
                 imgWidth = 1280
             elif (definition ==2):
                 imgWidth = 640
             else:
-                self.logs.display("Definition unknown!", "Error")
-                self.interruptProgram("Error")
+                self.logs.display("[ Correction Module ] Definition unknown!",
+                                  "Error")
 
             imgCenter = imgWidth/2
             length = averageX - imgCenter
 
             if (averageX < (imgCenter - imgWidth*0.15)):
                 # Nao is on the right of the line.
-                self.logs.display("Nao is on the right of the line", "Warning")
+                self.logs.display("[ Correction Module ] Nao is on the right of the line",
+                                  "Warning")
                 direction = -0.1
+
             elif (averageX > (imgCenter + imgWidth*0.15)):
                 # Nao is on the left of the line.
-                self.logs.display("Nao is on the left of the line", "Warning")
+                self.logs.display("[ Correction Module ] Nao is on the left of the line",
+                                  "Warning")
                 direction = 0.1
 
-            # ############################## End of ############################## #
-            # ################### Trajectory Correction Module ################### #
+            else:
+                self.logs.display("[ Correction Module ] Nao is on the line",
+                                  "Good")
+
+            # ########################### End of ############################ #
+            # ################ Trajectory Correction Module ################# #
             
             global NaoShouldWalk
             NaoShouldWalk = True
@@ -288,58 +301,64 @@ class getDirectionFromLine(ALModule, Thread):
         except TypeError:
             global NaoShouldWalk
             NaoShouldWalk = False
+            self.logs.display("Nao should stop!", "Error")
 
-        except KeyboardInterrupt:
-            interruptProgram("User")
-
+        # Delete the thread.
         getDirectionFromLineThread = None
 
 
+    # Method called by the Thread.start() method.
     def run(self):
-        try:
-            self.getVectorsCoordinates()
-            self.getDirectionFromVectors()
-
-        except KeyboardInterrupt:
-            interruptProgram("User")
+        self.getVectorsCoordinates()
+        self.getDirectionFromVectors()
 
 
+    # Method called to properly delete the thread.
     def delete(self):
         pass
 
+# ############################### END OF CLASS ############################## #
+
+
+
+# ####################### CLASS TO CONTOL NAO'S WALK ######################## #
 
 class NaoWalks(ALModule, Thread):
     """docstring for NaoWalks"""
     def __init__(self, name):
         Thread.__init__(self)
         ALModule.__init__(self, name)
-        global myBroker
-        global direction
-        # Create new object to get logs on computer's terminal.
+
+        # Create new object display a colored message on computer's terminal.
         self.logs = logs()
 
         # Create an ALMotion proxy.
         self.motion = ALProxy("ALMotion")
-        self.logs.display("Subscribed to an ALMotion proxy")
+        self.logs.display("Subscribed to an ALMotion proxy", "Good")
 
 
+    # Method called by the Thread.start() method.
     def run(self):
-        try:
-            global direction
-            self.logs.display("Direction (radian):", "Default", str(direction))
-            self.motion.moveTo(0.3, 0, direction)
-            self.logs.display("Nao is walking :)", "Good")
+        global direction
+        self.logs.display("Direction (radian):", "Default", str(direction))
+        self.motion.moveTo(0.3, 0, direction)
+        self.logs.display("Nao is walking :)", "Good")
 
-        except KeyboardInterrupt:
-            interruptProgram("User")
 
+    # Method called to stop Nao.
     def stop(self):
         self.motion.killMove()
 
+
+    # Method called to properly delete the thread.
     def delete(self):
         self.motion.killMove()
+
+# ############################### END OF CLASS ############################## #
         
 
+
+# ######################## MAIN CLASS AND MAIN LOOP ######################### #
 
 class followTheLineModule(ALModule, Thread):
     """docstring for followTheLineModule"""
@@ -347,56 +366,75 @@ class followTheLineModule(ALModule, Thread):
         Thread.__init__(self)
         ALModule.__init__(self, name)
 
-        global myBroker
-        global direction
-        global NaoShouldWalk
-
-        global getDirectionFromLineThread
-        global NaoWalksThread
-        
-        # Create new object to get logs on computer's terminal.
+        # Create new object display a colored message on computer's terminal.
         self.logs = logs()
         self.logs.display("Initializing module...")
         
-        # Create new threads.
-        getDirectionFromLineThread = getDirectionFromLine("getDirectionFromLine")
-        NaoWalksThread = NaoWalks("NaoWalks")
-        
-        # Create an ALTextToSpeech proxy.
+        # Create new proxies.
+        global mainVolume
         self.tts = ALProxy("ALTextToSpeech")
         self.tts.setLanguage("french")
-        global mainVolume
         self.tts.setVolume(mainVolume)
-        self.logs.display("Subscribed to an ALTextToSpeech proxy in followTheLineModule thread")
+        self.logs.display("Subscribed to an ALTextToSpeech proxy",
+                          "Good")
         
-        # Create an ALMotion ALRobotPosture.
         self.posture = ALProxy("ALRobotPosture")
-        self.logs.display("Subscribed to an ALRobotPosture proxy")
-        self.posture.goToPosture("StandInit", 1.0)
-        self.logs.display("Nao go to posture StandInit")
+        self.logs.display("Subscribed to an ALRobotPosture proxy",
+                          "Good")
 
-        # Create an ALLeds proxy.
         self.leds = ALProxy("ALLeds")
-        self.logs.display("Subscribed to an ALLeds proxy")
+        self.logs.display("Subscribed to an ALLeds proxy",
+                          "Good")
 
         global memory       
-        # Instanciation d'un objet memory de classe ALMemory.
         memory = ALProxy("ALMemory")
-        # Appel de la methode subsribeToEvent...
-        memory.subscribeToEvent("FrontTactilTouched", # Sur cet evenement...
-                                "followTheLine",     # ...de cet instance...
-                                "onTouched")          # ...declancher l'appel
-                                                      # ...de cette methode.
+        memory.subscribeToEvent("FrontTactilTouched",
+                                "followTheLine",
+                                "onTouched")
+
+        # Prepare Nao.
+        self.posture.goToPosture("StandInit", 1.0)
+        self.logs.display("Nao is going to posture StandInit")
+
+        # Create new threads.
+        global getDirectionFromLineThread
+        if (getDirectionFromLineThread is None):
+            getDirectionFromLineThread = getDirectionFromLine("getDirectionFromLine")
+            self.logs.display("New thread 'getDirectionFromLine' created",
+                              "Good")
+
+        global NaoWalksThread
+        if (NaoWalksThread is None):
+            NaoWalksThread = NaoWalks("NaoWalks")
+            self.logs.display("New thread 'NaoWalks' created",
+                              "Good")
+
+        global RefreshCamThread
+        if (RefreshCamThread is None):
+            RefreshCamThread = RefreshCam("RefreshCam")
+            self.logs.display("New thread 'RefreshCam' created",
+                              "Good")
+
+        # Start thread.
+        if (RefreshCamThread is not None and RefreshCamThread.isAlive()):
+            pass
+        else:
+            RefreshCamThread.start()
+            self.logs.display("Thread 'RefreshCam' started",
+                              "Good")
 
         # Ready!
         self.logs.display("Module ready", "Good")
         self.tts.say("Je suis prêt")
 
-    def onTouched(self, *_args):
-        # global memory
-        # memory.unsubscribeToEvent("FrontTactilTouched",
-        #                           "followTheLine")
 
+    # Shut down Nao by clicking on his front head button.
+    def onTouched(self, *_args):
+        global memory
+        memory.unsubscribeToEvent("FrontTactilTouched",
+                                  "followTheLine")
+
+        # Properly close threads.
         global RefreshCamThread
         RefreshCamThread.delete()
         global NaoWalksThread
@@ -407,46 +445,45 @@ class followTheLineModule(ALModule, Thread):
         followTheLine.delete()
 
 
+    # Method called by the Thread.start() method.
     def run(self):
         # Start a new threads.
         global getDirectionFromLineThread
         getDirectionFromLineThread.start()
 
-        try:
-            while True:
-                if (getDirectionFromLine is not None 
-                    and getDirectionFromLineThread.isAlive()):
-                    pass
-                else:
+        while True:
+            if (getDirectionFromLine is not None 
+                and getDirectionFromLineThread.isAlive()):
+                pass
+            else:
+                # Start a new thread.
+                getDirectionFromLineThread = getDirectionFromLine("getDirectionFromLine")
+                getDirectionFromLineThread.start()
+
+            global NaoWalksThread
+            global NaoShouldWalk
+            if (NaoShouldWalk is True):
+                self.leds.randomEyes(0.5)
+                self.leds.on("FaceLeds")
+                if (NaoWalksThread.isAlive() is not True):
                     # Start a new thread.
-                    getDirectionFromLineThread = getDirectionFromLine("getDirectionFromLine")
-                    getDirectionFromLineThread.start()
+                    NaoWalksThread = NaoWalks("NaoWalks")
+                    NaoWalksThread.start()
 
-                global NaoWalksThread
-                global NaoShouldWalk
-                if (NaoShouldWalk is True):
-                    self.leds.randomEyes(0.5)
-                    self.leds.on("FaceLeds")
-                    if (NaoWalksThread.isAlive() is not True):
-                        # Start a new thread.
-                        NaoWalksThread = NaoWalks("NaoWalks")
-                        NaoWalksThread.start()
+            else:
+                self.tts.say("Je recherche la ligne")
+                self.logs.display("No line found", "Warning")
 
-                else:
-                    self.tts.say("Je recherche la ligne")
-                    self.logs.display("No line found", "Warning")
+                if (NaoWalksThread is None or NaoWalksThread.isAlive() is not True):
+                    NaoWalksThread.stop()
 
-                    if (NaoWalksThread is None or NaoWalksThread.isAlive() is not True):
-                        NaoWalksThread.stop()
-
-                    # Rotate red eyes.
-                    self.leds.rotateEyes(0xff0000, 1, 1)
-
-        except KeyboardInterrupt:
-            interruptProgram("User")
+                # Rotate red eyes.
+                self.leds.rotateEyes(0xff0000, 1, 1)
 
 
+    # Method called to properly delete the thread.
     def delete(self):
+        global myBroker
         self.motion.post.angleInterpolation(["HeadYaw"],
                                              0,
                                              1,
@@ -465,13 +502,16 @@ class followTheLineModule(ALModule, Thread):
         self.logs.display("NAO IS IDLE", "Good")
         sys.exit(0)
 
+# ############################### END OF CLASS ############################## #
 
 
-# ---*** Main Function ***---
+
+# ############################## MAIN FUNCTION ############################## #
+
 def main():
-    # Create parser to maintain connexion with Nao.
+    # Create parser to keep in touch with Nao.
     parser = OptionParser()
-    parser.set_defaults(pip = IP, pport = 9559)
+    parser.set_defaults(pip = IP, pport = port)
     (opts, args_) = parser.parse_args()
     pip = opts.pip
     pport = opts.pport
@@ -482,8 +522,16 @@ def main():
     global followTheLine
     # Create new thread.
     followTheLine = followTheLineModule("followTheLine")
-    # Start new thread.
+    # Start the new thread.
     followTheLine.start()
+
+# ############################### END FUNCTION ############################## #
+
+
+
+# ############################## PROGRAM ENTRY ############################## #
 
 if __name__ == '__main__':
     main()
+
+# ############################### END OF FILE ############################### #
