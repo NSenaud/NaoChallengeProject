@@ -52,6 +52,8 @@ memory = None                       # A memory object to recall events.
 # Global variables:
 imgNAO = None                       # Current image from the cam.
 direction = 0                       # Direction (in radian) Nao should follow.
+directions = []
+directions.append(-10)
 
 
 
@@ -128,6 +130,8 @@ class RefreshCam(ALModule, Thread):
                 imgNAO = self.camProxy.getImageRemote(self.followTheLineCam)
                 self.camProxy.releaseImage(self.followTheLineCam)
                 self.logs.display("Received a picture from Camera 1")
+
+            time.sleep(1)
 
 
     # Method called to properly delete the thread.
@@ -267,34 +271,36 @@ class getDirectionFromLine(ALModule, Thread):
             # ############################################################### #
 
             # Compute direction Nao need to take to get the line.
-            # global definition
-            # # Get image definition.
-            # if (definition == 3):
-            #     imgWidth = 1280
-            # elif (definition ==2):
-            #     imgWidth = 640
-            # else:
-            #     self.logs.display("< Correction Module > Definition unknown!",
-            #                       "Error")
+            global definition
+            # Get image definition.
+            if (definition == 3):
+                imgWidth = 1280
+            elif (definition == 2):
+                imgWidth = 640
+            elif (definition == 1):
+                imgWidth = 320
+            else:
+                self.logs.display("< Correction Module > Definition unknown!",
+                                  "Error")
 
-            # imgCenter = imgWidth/2
-            # length = averageX - imgCenter
+            imgCenter = imgWidth/2
+            length = averageX - imgCenter
 
-            # if (averageX < (imgCenter - imgWidth*0.15)):
-            #     # Nao is on the right of the line.
-            #     self.logs.display("< Correction Module > Nao is on the right of the line",
-            #                       "Warning")
-            #     direction = -0.1
+            if (averageX < (imgCenter - imgWidth*0.15)):
+                # Nao is on the right of the line.
+                self.logs.display("< Correction Module > Nao is on the right of the line",
+                                  "Warning")
+                direction = -0.1
 
-            # elif (averageX > (imgCenter + imgWidth*0.15)):
-            #     # Nao is on the left of the line.
-            #     self.logs.display("< Correction Module > Nao is on the left of the line",
-            #                       "Warning")
-            #     direction = 0.1
+            elif (averageX > (imgCenter + imgWidth*0.15)):
+                # Nao is on the left of the line.
+                self.logs.display("< Correction Module > Nao is on the left of the line",
+                                  "Warning")
+                direction = 0.1
 
-            # else:
-            #     self.logs.display("< Correction Module > Nao is on the line",
-            #                       "Good")
+            else:
+                self.logs.display("< Correction Module > Nao is on the line",
+                                  "Good")
 
             # ########################### End of ############################ #
             # ################ Trajectory Correction Module ################# #
@@ -350,10 +356,16 @@ class NaoWalks(ALModule, Thread):
     # Method called by the Thread.start() method.
     def run(self):
         global direction
-        self.logs.display("Nao is walking in direction (radian):",
-                          "Default",
-                          str(direction))
-        self.motion.moveTo(0.2, 0, direction)
+        global directions
+        if (direction != directions.pop()):
+            directions.append(direction)
+
+            self.stop()
+
+            self.logs.display("Nao is walking in direction (radian):",
+                              "Default",
+                              str(direction))
+            self.motion.moveTo(0.2, 0, direction)
 
         global AnalyseANewPict
         AnalyseANewPict = True
@@ -400,12 +412,6 @@ class followTheLineModule(ALModule, Thread):
         self.logs.display("Subscribed to an ALLeds proxy",
                           "Good")
 
-        global memory       
-        memory = ALProxy("ALMemory")
-        memory.subscribeToEvent("FrontTactilTouched",
-                                "followTheLine",
-                                "onTouched")
-
         # Prepare Nao.
         self.posture.goToPosture("StandInit", 1.0)
         self.logs.display("Nao is going to posture StandInit")
@@ -449,18 +455,24 @@ class followTheLineModule(ALModule, Thread):
                                   "followTheLine")
 
         # Properly close threads.
-        global RefreshCamThread
-        RefreshCamThread.delete()
-        global NaoWalksThread
-        NaoWalksThread.delete()
         global getDirectionFromLineThread
         getDirectionFromLineThread.delete()
+        global NaoWalksThread
+        NaoWalksThread.delete()
+        global RefreshCamThread
+        RefreshCamThread.delete()
         global followTheLine
         followTheLine.delete()
 
 
     # Method called by the Thread.start() method.
     def run(self):
+        global memory       
+        memory = ALProxy("ALMemory")
+        memory.subscribeToEvent("FrontTactilTouched",
+                                "followTheLine",
+                                "onTouched")
+
         # Start a new threads.
         global getDirectionFromLineThread
         getDirectionFromLineThread.start()
@@ -494,6 +506,8 @@ class followTheLineModule(ALModule, Thread):
 
                 # Rotate red eyes.
                 self.leds.rotateEyes(0xff0000, 1, 1)
+
+            time.sleep(1)
 
 
     # Method called to properly delete the thread.
