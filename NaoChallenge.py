@@ -33,7 +33,11 @@ from naoqi import ALModule
 IP = "NaoCRIC.local"                 # Nao's domain name.
 port = 9559                          # Nao's standard port.
 mainVolume = 0.3                     # Volume of Nao's voice.
-definition = vision_definitions.kVGA # Definition of cam's pictures & videos.
+definition = vision_definitions.kQVGA # Definition of cam's pictures & videos.
+
+# Flags:
+NaoShouldWalk = None                # Does Nao have a direction to follow?
+AnalyseANewPict = True              # Lauch a new picture analysis?
 
 # Threads declaration to avoid errors:
 RefreshCamThread = None             # Thead which look after cam's picts.
@@ -46,7 +50,6 @@ myBroker = None                     # Broker to keep connexion with Nao.
 memory = None                       # A memory object to recall events.
 
 # Global variables:
-NaoShouldWalk = None                # Does Nao have a direction to follow?
 imgNAO = None                       # Current image from the cam.
 direction = 0                       # Direction (in radian) Nao should follow.
 
@@ -118,11 +121,13 @@ class RefreshCam(ALModule, Thread):
     # Method called by the Thread.start() method.
     def run(self):
         while True:
-            global imgNAO
-            # Get the image.
-            imgNAO = self.camProxy.getImageRemote(self.followTheLineCam)
-            self.camProxy.releaseImage(self.followTheLineCam)
-            self.logs.display("Received a picture from Camera 1")
+            global AnalyseANewPict
+            if (AnalyseANewPict is True):
+                global imgNAO
+                # Get the image.
+                imgNAO = self.camProxy.getImageRemote(self.followTheLineCam)
+                self.camProxy.releaseImage(self.followTheLineCam)
+                self.logs.display("Received a picture from Camera 1")
 
 
     # Method called to properly delete the thread.
@@ -175,7 +180,7 @@ class getDirectionFromLine(ALModule, Thread):
             white = cv2.inRange(hsv_img, lower_white, upper_white)
             # Filter white on original.
             img = cv2.bitwise_and(img, img, mask=white)
-            self.logs.display("[ OpenCV ] Added 'white only' filter")
+            self.logs.display("< OpenCV > Added 'white only' filter")
 
             # Conversions for lines detection.
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -190,7 +195,7 @@ class getDirectionFromLine(ALModule, Thread):
                                          100,
                                          minLineLength,
                                          maxLineGap)
-            self.logs.display("[ OpenCV ] Added 'lines finder' filter")
+            self.logs.display("< OpenCV > Added 'lines finder' filter")
 
             # Write lines on image return.
             try:
@@ -262,34 +267,34 @@ class getDirectionFromLine(ALModule, Thread):
             # ############################################################### #
 
             # Compute direction Nao need to take to get the line.
-            global definition
-            # Get image definition.
-            if (definition == 3):
-                imgWidth = 1280
-            elif (definition ==2):
-                imgWidth = 640
-            else:
-                self.logs.display("[ Correction Module ] Definition unknown!",
-                                  "Error")
+            # global definition
+            # # Get image definition.
+            # if (definition == 3):
+            #     imgWidth = 1280
+            # elif (definition ==2):
+            #     imgWidth = 640
+            # else:
+            #     self.logs.display("< Correction Module > Definition unknown!",
+            #                       "Error")
 
-            imgCenter = imgWidth/2
-            length = averageX - imgCenter
+            # imgCenter = imgWidth/2
+            # length = averageX - imgCenter
 
-            if (averageX < (imgCenter - imgWidth*0.15)):
-                # Nao is on the right of the line.
-                self.logs.display("[ Correction Module ] Nao is on the right of the line",
-                                  "Warning")
-                direction = -0.1
+            # if (averageX < (imgCenter - imgWidth*0.15)):
+            #     # Nao is on the right of the line.
+            #     self.logs.display("< Correction Module > Nao is on the right of the line",
+            #                       "Warning")
+            #     direction = -0.1
 
-            elif (averageX > (imgCenter + imgWidth*0.15)):
-                # Nao is on the left of the line.
-                self.logs.display("[ Correction Module ] Nao is on the left of the line",
-                                  "Warning")
-                direction = 0.1
+            # elif (averageX > (imgCenter + imgWidth*0.15)):
+            #     # Nao is on the left of the line.
+            #     self.logs.display("< Correction Module > Nao is on the left of the line",
+            #                       "Warning")
+            #     direction = 0.1
 
-            else:
-                self.logs.display("[ Correction Module ] Nao is on the line",
-                                  "Good")
+            # else:
+            #     self.logs.display("< Correction Module > Nao is on the line",
+            #                       "Good")
 
             # ########################### End of ############################ #
             # ################ Trajectory Correction Module ################# #
@@ -306,9 +311,14 @@ class getDirectionFromLine(ALModule, Thread):
         # Delete the thread.
         getDirectionFromLineThread = None
 
+        global AnalyseANewPict
+        AnalyseANewPict = True
+
 
     # Method called by the Thread.start() method.
     def run(self):
+        global AnalyseANewPict
+        AnalyseANewPict = False
         self.getVectorsCoordinates()
         self.getDirectionFromVectors()
 
@@ -340,9 +350,13 @@ class NaoWalks(ALModule, Thread):
     # Method called by the Thread.start() method.
     def run(self):
         global direction
-        self.logs.display("Direction (radian):", "Default", str(direction))
-        self.motion.moveTo(0.3, 0, direction)
-        self.logs.display("Nao is walking :)", "Good")
+        self.logs.display("Nao is walking in direction (radian):",
+                          "Default",
+                          str(direction))
+        self.motion.moveTo(0.2, 0, direction)
+
+        global AnalyseANewPict
+        AnalyseANewPict = True
 
 
     # Method called to stop Nao.
@@ -474,8 +488,9 @@ class followTheLineModule(ALModule, Thread):
                 self.tts.say("Je recherche la ligne")
                 self.logs.display("No line found", "Warning")
 
-                if (NaoWalksThread is None or NaoWalksThread.isAlive() is not True):
-                    NaoWalksThread.stop()
+                NaoWalksThread.stop()
+                # if (NaoWalksThread is None or NaoWalksThread.isAlive() is not True):
+                #     NaoWalksThread.stop()
 
                 # Rotate red eyes.
                 self.leds.rotateEyes(0xff0000, 1, 1)
