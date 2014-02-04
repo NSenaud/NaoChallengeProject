@@ -54,6 +54,7 @@ imgNAO = None                       # Current image from the cam.
 direction = 0                       # Direction (in radian) Nao should follow.
 directions = []
 directions.append(-10)
+alpha = None                        # Angle (in radian) of Nao's head.
 
 
 
@@ -155,6 +156,7 @@ class getDirectionFromLine(ALModule, Thread):
 
         # Create new object display a colored message on computer's terminal.
         self.logs = logs()
+        
 
 
     # Find white line(s) on pict and save points' coordinates.
@@ -266,8 +268,8 @@ class getDirectionFromLine(ALModule, Thread):
             direction = direction*np.pi/180
 
             # ################ Trajectory Correction Module ################# #
-            # # Version : 1.1                                               # #
-            # # Quality : 2/10                                              # #
+            # # Version : 2.0                                               # #
+            # # Quality : -/10                                              # #
             # ############################################################### #
 
             # Compute direction Nao need to take to get the line.
@@ -290,17 +292,21 @@ class getDirectionFromLine(ALModule, Thread):
                 # Nao is on the right of the line.
                 self.logs.display("< Correction Module > Nao is on the right of the line",
                                   "Warning")
-                direction = -0.1
 
             elif (averageX > (imgCenter + imgWidth*0.15)):
                 # Nao is on the left of the line.
                 self.logs.display("< Correction Module > Nao is on the left of the line",
                                   "Warning")
-                direction = 0.1
 
             else:
                 self.logs.display("< Correction Module > Nao is on the line",
                                   "Good")
+
+            global alpha
+            alpha = np.arctan(( 60.*(averageX - imgCenter)) / (65.*imgWidth))
+            self.logs.display("Alpha angle (radian)",
+                              "Default",
+                              str(alpha))
 
             # ########################### End of ############################ #
             # ################ Trajectory Correction Module ################# #
@@ -356,16 +362,29 @@ class NaoWalks(ALModule, Thread):
     # Method called by the Thread.start() method.
     def run(self):
         global direction
+        global alpha
         global directions
-        if (direction != directions.pop()):
-            directions.append(direction)
 
-            self.stop()
+        self.motion.post.angleInterpolation(["HeadYaw"],
+                                             alpha,
+                                             1,
+                                             False)
 
-            self.logs.display("Nao is walking in direction (radian):",
-                              "Default",
-                              str(direction))
-            self.motion.moveTo(0.2, 0, direction)
+        direction = self.motion.getAngles("HeadYaw", True)
+
+        try:
+            if (direction.pop() != directions.pop()):
+                directions.append(direction.pop())
+
+                self.stop()
+
+                self.logs.display("Nao is walking in direction (radian):",
+                                  "Default",
+                                  str(direction.pop()))
+                self.motion.moveTo(0.2, 0, direction.pop())
+
+        except IndexError:
+            pass
 
         global AnalyseANewPict
         AnalyseANewPict = True
@@ -495,6 +514,7 @@ class followTheLineModule(ALModule, Thread):
                     # Start a new thread.
                     NaoWalksThread = NaoWalks("NaoWalks")
                     NaoWalksThread.start()
+                    NaoWalksThread.join()
 
             else:
                 self.tts.say("Je recherche la ligne")
