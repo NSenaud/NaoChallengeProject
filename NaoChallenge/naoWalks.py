@@ -68,6 +68,7 @@ class NaoWalks(ALModule, Thread):
                 self.logs.display("Nao is walking in direction (radian):",
                                   "Default",
                                   str(direction.pop()))
+                # C'est un appel bloquant ?
                 self.motion.moveTo(0.2, 0, direction.pop())
 
         except IndexError:

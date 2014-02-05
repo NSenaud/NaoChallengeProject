@@ -62,6 +62,7 @@ class RefreshCam(ALModule, Thread):
     # Method called by the Thread.start() method.
     def run(self):
         while True:
+            # mouais ;)
             global AnalyseANewPict
             if (AnalyseANewPict is True):
                 global imgNAO
@@ -69,8 +70,11 @@ class RefreshCam(ALModule, Thread):
                 imgNAO = self.camProxy.getImageRemote(self.followTheLineCam)
                 self.camProxy.releaseImage(self.followTheLineCam)
                 self.logs.display("Received a picture from Camera 1")
-
-            time.sleep(1)
+            # AMA pultot 0.1, le but c'est juste de lui eviter une boucle infinie si AnalyseANewPict=False
+            # Tu peux tester sans le sleep avec un self.logs.display("Je fais rien!! Je tourne en rond dans RefreshCam.run()")
+            # pour voir si ca lui arrive souvent ou pas.
+            # (sachant que le sleep n'est pas la meilleure facon de résoudre ce pb)
+            time.sleep(0.1)
 
 
     # Method called to properly delete the thread.
