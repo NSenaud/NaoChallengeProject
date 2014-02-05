@@ -33,6 +33,9 @@ from naoqi import ALModule
 # ######################### CLASS TO LOG EVENTS ############################# #
 
 class logs(object):
+
+    # mutex
+
     def __init__(self):
         # Colors definition with ASCII extended codes.
         self.HEADER = '\033[95m'
@@ -45,6 +48,7 @@ class logs(object):
 
     # Display a colored message on computer's terminal.
     def display(self, message, logType="Default", additionalMessage=" "):
+        # mutex lock
         if ((logType == "Default") or (logType == 3)):
             print self.OKBLUE  + "[ INFO ]"    + self.ENDC,
             print message,
@@ -61,5 +65,6 @@ class logs(object):
             print self.ERROR   + "[ ERROR ]"   + self.ENDC,
             print message,
             print additionalMessage
+        # mutex unlock
 
 # ############################### END OF CLASS ############################## #

@@ -48,9 +48,9 @@ class NaoSpeak(Thread, ALModule):
                           "Good")
 
     def run(self):
+        # self.tts.say(...) est un appel bloquant?
         self.say("Bobidi Bobida!")
         
-
     def say(self, message, volume=0.3, language='french'):
         self.tts.setLanguage(language)
         self.tts.setVolume(volume)
