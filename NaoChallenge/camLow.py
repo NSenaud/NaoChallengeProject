@@ -70,7 +70,7 @@ class RefreshCam(ALModule, Thread):
                 self.camProxy.releaseImage(self.followTheLineCam)
                 self.logs.display("Received a picture from Camera 1")
 
-            time.sleep(1)
+            time.sleep(0.1)
 
 
     # Method called to properly delete the thread.
