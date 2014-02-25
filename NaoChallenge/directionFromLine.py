@@ -22,7 +22,7 @@ import numpy as np                  # Numpy:  Maths library.
 import cv2                          # OpenCV: Visual recognition library.
 import vision_definitions           # Image definitions macros.
 
-from threading import Thread        # Multithreading librairy.
+from threading import Thread, Lock  # Multithreading librairy.
 from optparse import OptionParser   # Parser to keep connexion with Nao.
 
 # Nao's libraries.
@@ -34,10 +34,13 @@ from naoqi import ALModule
 
 class getDirectionFromLine(ALModule, Thread):
     """docstring for getDirection"""
-    def __init__(self, name):
+    def __init__(self, name, event, pict):
         Thread.__init__(self)
         ALModule.__init__(self, name)
+        self.mutex = Lock()
 
+        self.event = event
+        self.pict  = pict 				   # Pict from Nao's cam.
         self.lines = None                  # Lines found by OpenCV on picts.
 
         # Create new object display a colored message on computer's terminal.
@@ -47,8 +50,7 @@ class getDirectionFromLine(ALModule, Thread):
 
     # Find white line(s) on pict and save points' coordinates.
     def getVectorsCoordinates(self):
-        global imgNAO
-        img = imgNAO                        # Get the last pict from cam.
+    	img = self.pict
 
         try:
             # Read parameters.
@@ -206,19 +208,18 @@ class getDirectionFromLine(ALModule, Thread):
             NaoShouldWalk = False
             self.logs.display("Nao should stop!", "Error")
 
-        # Delete the thread.
-        getDirectionFromLineThread = None
-
-        global AnalyseANewPict
-        AnalyseANewPict = True
-
 
     # Method called by the Thread.start() method.
     def run(self):
-        global AnalyseANewPict
-        AnalyseANewPict = False
-        self.getVectorsCoordinates()
-        self.getDirectionFromVectors()
+    	while True:
+	        self.event.wait()
+	        self.mutex.acquire()
+
+	        self.getVectorsCoordinates()
+	        self.getDirectionFromVectors()
+
+	        self.event.set()
+	        self.mutex.release()
 
 
     # Method called to properly delete the thread.

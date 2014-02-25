@@ -36,12 +36,15 @@ from naoqi import ALModule
 
 class RefreshCam(ALModule, Thread):
     """docstring for NaoWalks"""
-    def __init__(self, name):
+    def __init__(self, name, event, pict):
         Thread.__init__(self)
         ALModule.__init__(self, name)
 
+        self.event = event
+        self.pict  = pict
+
         # Create new object to get logs on computer's terminal.
-        self.logs = logs()
+        self.logs = logs.logs()
 
         # Create an ALVideoDevice proxy.
         self.camProxy = ALProxy("ALVideoDevice")
@@ -49,7 +52,7 @@ class RefreshCam(ALModule, Thread):
 
         # Register a video module.
         colorSpace = vision_definitions.kBGRColorSpace
-        fps = 1
+        fps = 15
         camera = 1      # 1 = mouth camera / 0 = front camera.
         self.followTheLineCam = self.camProxy.subscribeCamera("LowCam",
                                                               camera,
@@ -61,21 +64,18 @@ class RefreshCam(ALModule, Thread):
 
     # Method called by the Thread.start() method.
     def run(self):
-        while True:
-            global AnalyseANewPict
-            if (AnalyseANewPict is True):
-                global imgNAO
-                # Get the image.
-                imgNAO = self.camProxy.getImageRemote(self.followTheLineCam)
-                self.camProxy.releaseImage(self.followTheLineCam)
-                self.logs.display("Received a picture from Camera 1")
+    	while True:
+	    	self.event.wait()
+	        
+	        # Get the image.
+	        pict = self.camProxy.getImageRemote(self.followTheLineCam)
+	        self.camProxy.releaseImage(self.followTheLineCam)
+	        self.logs.display("Received a picture from Camera 1")
+	        
+	        self.event.clear()
 
-            time.sleep(0.1)
-
-
-    # Method called to properly delete the thread.
-    def delete(self):
-        self.camProxy.unsubscribe("LowCam")
+	    self.camProxy.unsubscribe("LowCam")
         self.logs.display("Camera unsubscribed", "Good")
+
 
 # ############################### END OF CLASS ############################## #

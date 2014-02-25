@@ -36,19 +36,19 @@ from naoqi import ALModule
 
 class NaoSpeak(Thread, ALModule):
     """docstring for NaoSpeak"""
-    def __init__(self, name):
+    def __init__(self, name, message):
         Thread.__init__(self)
         ALModule.__init__(self, name)
 
-        self.logs = logs.logs()
+        self.message = message
 
+        self.logs = logs.logs()
         self.tts = ALProxy("ALTextToSpeech")
-        
         self.logs.display("Subscribed to an ALTextToSpeech proxy",
                           "Good")
 
     def run(self):
-        self.say("Bobidi Bobida!")
+        self.say(self.message)
         
 
     def say(self, message, volume=0.3, language='french'):
@@ -56,5 +56,30 @@ class NaoSpeak(Thread, ALModule):
         self.tts.setVolume(volume)
         self.tts.say(message)
         
+
+# ############################### END OF CLASS ############################## #
+
+
+
+# ####################### CLASS TO CONTROL NAO'S LED ######################## #
+
+class NaoLeds(Thread, ALModule):
+    """docstring for NaoLedsOn"""
+    def __init__(self, name, state):
+        Thread.__init__(self)
+        ALModule.__init__(self, name)
+
+        self.state = state
+
+        self.leds = ALProxy("ALLeds")
+        self.logs.display("Subscribed to an ALLeds proxy",
+                          "Good")
+
+    def run(self):
+        if (self.state is "on"):
+            self.leds.on("FaceLeds")
+
+        
+
 
 # ############################### END OF CLASS ############################## #

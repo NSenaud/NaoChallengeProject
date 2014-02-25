@@ -22,7 +22,7 @@ import numpy as np                  # Numpy:  Maths library.
 import cv2                          # OpenCV: Visual recognition library.
 import vision_definitions           # Image definitions macros.
 
-from threading import Thread        # Multithreading librairy.
+from threading import Thread, Event # Multithreading librairy.
 from optparse import OptionParser   # Parser to keep connexion with Nao.
 
 # Nao Challenge's library.
@@ -81,9 +81,50 @@ def main():
 
     log = logs.logs()
 
-    NaoSpeak = ihm.NaoSpeak("ihmSpeakModule")
-    NaoSpeak.start()
-    NaoSpeak.join()
+    # Starting... *************************************************************
+    NaoSpeakThread = ihm.NaoSpeak("ihmSpeakModule", "Je me prépare")
+    NaoSpeakThread.start()
+
+    # Picture from Nao's cam.
+    pict = None
+    
+    # Create a flag:
+    getANewPict = Event()
+    # Set the flag to False:
+    getANewPict.clear()
+    # Create the camRefresh thread:
+    RefreshCamThread = camLow.RefreshCam("camLowRefreshModule",
+                                         getANewPict,
+                                         pict)
+    RefreshCamThread.start()
+
+    # Create a flag:
+    analyseANewPict = Event()
+    # Set the flag to False:
+    analyseANewPict.clear()
+    getDirectionFromLineThread = directionFromLine.getDirectionFromLineThread(
+                                         "directionFromLineModule",
+                                         analyseANewPict,
+                                         pict)
+
+    NaoSpeakThread = ihm.NaoSpeak("ihmSpeakModule", "Je suis prêt")
+    NaoSpeakThread.start()
+    NaoSpeakThread.join()
+    NaoSpeak = None
+
+    # Started! ****************************************************************
+
+    while True:
+        # Ask for a new pict from cam:
+        getANewPict.set()
+        # Waiting for the pict:
+        while (pict is None):
+            pass
+
+        # Analyse the new pict.
+        analyseANewPict.set()
+
+
 
     # global followTheLine
     # # Create new thread.
@@ -104,9 +145,19 @@ def main():
     # self.motion.setStiffnesses("Body", 0.0)
     # self.logs.display("Motors shot down")
 
-    # self.leds.on("FaceLeds")
-    # self.tts.say("Je suis prêt à reprendre le travail quand tu veux")
+    NaoLedsOnThread = ihm.NaoLeds("ihmLedsOnModule", "on")
+    NaoLedsOnThread.start()
+
+    NaoSpeakThread = ihm.NaoSpeak("ihmSpeakModule",
+                            "Je suis prêt à reprendre le travail quand tu veux")
+    NaoSpeakThread.start()
+
     myBroker.shutdown()
+    # Waiting for threads sync:
+    NaoLedsOnThread.join()
+    NaoLedsOnThread = None
+    NaoSpeakThread.join()
+    NaoSpeakThread = None
 
     log.display("Broker unsubscribed")
     log.display("NAO IS IDLE", "Good")

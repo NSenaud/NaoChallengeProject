@@ -30,6 +30,7 @@ from naoqi import ALProxy
 from naoqi import ALBroker
 from naoqi import ALModule
 
+
 # ####################### CLASS TO CONTOL NAO'S WALK ######################## #
 
 class NaoWalks(ALModule, Thread):
