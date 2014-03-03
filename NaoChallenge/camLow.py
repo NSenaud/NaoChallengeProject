@@ -64,17 +64,17 @@ class RefreshCam(ALModule, Thread):
 
     # Method called by the Thread.start() method.
     def run(self):
-    	while True:
-	    	self.event.wait()
-	        
-	        # Get the image.
-	        pict = self.camProxy.getImageRemote(self.followTheLineCam)
-	        self.camProxy.releaseImage(self.followTheLineCam)
-	        self.logs.display("Received a picture from Camera 1")
-	        
-	        self.event.clear()
+        while True:
+            self.event.wait()
+            
+            # Get the image.
+            pict = self.camProxy.getImageRemote(self.followTheLineCam)
+            self.camProxy.releaseImage(self.followTheLineCam)
+            self.logs.display("Received a picture from Camera 1")
+            
+            self.event.clear()
 
-	    self.camProxy.unsubscribe("LowCam")
+        self.camProxy.unsubscribe("LowCam")
         self.logs.display("Camera unsubscribed", "Good")
 
 
