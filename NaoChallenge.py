@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding:Utf-8 -*-
+#-*- coding:Utf-8 -*-
 
 # ########################################################################### #
 # #                   Nao Challenge 2014 Main Program                       # #
@@ -18,9 +18,9 @@
 
 import sys
 import time
-import numpy as np                  # Numpy:  Maths library.
-import cv2                          # OpenCV: Visual recognition library.
-import vision_definitions           # Image definitions macros.
+#import numpy as np                  # Numpy:  Maths library.
+#import cv2                          # OpenCV: Visual recognition library.
+#import vision_definitions           # Image definitions macros.
 
 from threading import Thread, Event # Multithreading librairy.
 from optparse import OptionParser   # Parser to keep connexion with Nao.
@@ -64,13 +64,115 @@ directions = []
 directions.append(-10)
 alpha = None                        # Angle (in radian) of Nao's head.
 
+# ################################# Class ################################### #
 
+class ModSelectionModule(ALModule):
+    """docstring for ModSelection"""
+    def __init__(self, name):
+        Thread.__init__(self)
+        ALModule.__init__(self, name)
+
+        # Create new object display a colored message on computer's terminal.
+        self.logs = logs()
+        self.logs.display("tactil initialisation")
+        
+        # Create new proxies.
+        self.posture = ALProxy("ALRobotPosture")
+        self.logs.display("Subscribed to an ALRobotPosture proxy",
+                          "Good")
+
+        self.leds = ALProxy("ALLeds")
+        self.logs.display("Subscribed to an ALLeds proxy",
+                          "Good")
+
+        # Prepare Nao.
+        self.posture.goToPosture("StandInit", 1.0)
+        self.logs.display("Nao is going to posture StandInit")
+
+        # Ready!
+        self.logs.display("Module ready", "Good")
+        ihm = NaoSpeak()
+        ihm.say("Que dois-je faire maître")
+
+
+    # select a Mod
+
+    def select_mod (self):
+        global FrontTactil
+        global MiddleTactil
+        global RearTactil      
+
+        FrontTactil = ALProxy("ALMemory")
+        MiddleTactil = ALProxy("ALMemory")
+        RearTactil = ALProxy("ALMemory")
+
+        FrontTactil.subscribeToEvent("FrontTactilTouched",
+                                     "ModSelectionModule",
+                                     "start_memento")
+        MiddleTactil.subscribeToEvent("FrontTactilTouched",
+                                      "ModSelectionModule",
+                                      "start_maestro")
+        RearTactil.subscribeToEvent("FrontTactilTouched",
+                                    "ModSelectionModule",
+                                    "start_gato")
+
+    def start_maestro (self):
+        ihm = NaoSpeak()
+        ihm.say("je m'occupe de la clef")
+
+        # Walk to the Door
+        self.motion.moveTo(0.5, 0, 0) # Here will stand homemade C++ locomotion fonction (Vision.cpp) 
+        
+
+        # Get the Key
+        
+
+        # Walk where the Key is suppose to be
+        self.motion.moveTo(0.5, 0, 3.1415) # Here will stand homemade C++ locomotion fonction (Vision.cpp) 
+        
+
+        # Drop the Key
+
+
+    
+
+
+    def start_maestro (self):
+        ihm = NaoSpeak()
+        ihm.say("quel jour sommes nous aujourd'hui ?")
+
+        # Walk to the Calendar
+        self.motion.moveTo(0.5, 0, 1.57)
+
+
+        # Read the Calendar
+
+
+        # Act depending on the day
+
+
+
+    
+
+    def start_gato(self):
+        ihm = NaoSpeak()
+        ihm.say("c'est l'heure des croquette du chat !")
+
+        # Walk to the Dropper
+        self.motion.moveTo(0.5, 0, -1.57)
+
+
+        # Turn it On
+
+
+    
 
 # ############################## MAIN FUNCTION ############################## #
 
 def main():
     # Create parser to keep in touch with Nao.
     parser = OptionParser()
+    Challenge = ModSelectionModule()
     parser.set_defaults(pip = IP, pport = port)
     (opts, args_) = parser.parse_args()
     pip = opts.pip
@@ -81,75 +183,16 @@ def main():
 
     log = logs.logs()
 
-    # Starting... *************************************************************
-    NaoSpeakThread = ihm.NaoSpeak("ihmSpeakModule", "Je me prépare")
-    NaoSpeakThread.start()
-
-    # Picture from Nao's cam.
-    pict = None
-    
-    # Create a flag:
-    getANewPict = Event()
-    # Set the flag to False:
-    getANewPict.clear()
-    # Create the camRefresh thread:
-    RefreshCamThread = camLow.RefreshCam("camLowRefreshModule",
-                                         getANewPict,
-                                         pict)
-    RefreshCamThread.start()
-
-    # Create a flag:
-    analyseANewPict = Event()
-    # Set the flag to False:
-    analyseANewPict.clear()
-    getDirectionFromLineThread = directionFromLine.getDirectionFromLineThread(
-                                         "directionFromLineModule",
-                                         analyseANewPict,
-                                         pict)
-
-    NaoSpeakThread = ihm.NaoSpeak("ihmSpeakModule", "Je suis prêt")
-    NaoSpeakThread.start()
-    NaoSpeakThread.join()
-    NaoSpeak = None
-
-    # Started! ****************************************************************
-
+    # Mod selection *************************************************************
     while True:
-        # Ask for a new pict from cam:
-        getANewPict.set()
-        # Waiting for the pict:
-        while (pict is None):
-            pass
-
-        # Analyse the new pict.
-        analyseANewPict.set()
-
-
-
-    # global followTheLine
-    # # Create new thread.
-    # followTheLine = followTheLineModule("followTheLine")
-    # # Start the new thread.
-    # followTheLine.start()
-
-
-    # followTheLine.join()
-
-    # self.motion.post.angleInterpolation(["HeadYaw"],
-    #                                      0,
-    #                                      1,
-    #                                      True)
-    # self.posture.goToPosture("Crouch", 1.0)
-    # self.logs.display("Nao go to posture Crouch")
-
-    # self.motion.setStiffnesses("Body", 0.0)
-    # self.logs.display("Motors shot down")
+        Challenge.select_mod()
+        
 
     NaoLedsOnThread = ihm.NaoLeds("ihmLedsOnModule", "on")
     NaoLedsOnThread.start()
 
     NaoSpeakThread = ihm.NaoSpeak("ihmSpeakModule",
-                            "Je suis prêt à reprendre le travail quand tu veux")
+                                  "Je suis prêt à reprendre le travail quand tu veux")
     NaoSpeakThread.start()
 
     myBroker.shutdown()
