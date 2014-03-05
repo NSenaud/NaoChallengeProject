@@ -22,7 +22,6 @@ import numpy as np                  # Numpy:  Maths library.
 import cv2                          # OpenCV: Visual recognition library.
 import vision_definitions           # Image definitions macros.
 
-from threading import Thread, Lock  # Multithreading librairy.
 from optparse import OptionParser   # Parser to keep connexion with Nao.
 
 # Nao's libraries.
@@ -34,7 +33,6 @@ from naoqi import ALModule
 
 class logs(object):
     def __init__(self):
-        self.mutex = Lock()
         # Colors definition with ASCII extended codes.
         self.HEADER = '\033[95m'
         self.OKBLUE = '\033[94m'
@@ -46,7 +44,6 @@ class logs(object):
 
     # Display a colored message on computer's terminal.
     def display(self, message, logType="Default", additionalMessage=" "):
-        self.mutex.acquire()
         if ((logType == "Default") or (logType == 3)):
             print self.OKBLUE  + "[ INFO ]"    + self.ENDC,
             print message,
@@ -64,6 +61,5 @@ class logs(object):
             print message,
             print additionalMessage
 
-        self.mutex.release()
 
 # ############################### END OF CLASS ############################## #

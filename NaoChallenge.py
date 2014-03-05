@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding:Utf-8 -*-
+# -*- coding:Utf-8 -*-
 
 # ########################################################################### #
 # #                   Nao Challenge 2014 Main Program                       # #
@@ -18,23 +18,22 @@
 
 import sys
 import time
-#import numpy as np                  # Numpy:  Maths library.
-#import cv2                          # OpenCV: Visual recognition library.
-#import vision_definitions           # Image definitions macros.
+import numpy as np                  # Numpy:  Maths library.
+import cv2                          # OpenCV: Visual recognition library.
+import vision_definitions           # Image definitions macros.
 
-from threading import Thread, Event # Multithreading librairy.
 from optparse import OptionParser   # Parser to keep connexion with Nao.
 
 # Nao Challenge's library.
 from NaoChallenge import logs
 from NaoChallenge import ihm
-from NaoChallenge import camLow
 from NaoChallenge import followTheLine
 
 # Aldebaran library for Nao.
 from naoqi import ALProxy
 from naoqi import ALBroker
 from naoqi import ALModule
+from optparse import OptionParser
 
 
 # Constants:
@@ -55,7 +54,11 @@ followTheLine = None                # Main thread with main loop.
 
 # Global objects:
 myBroker = None                     # Broker to keep connexion with Nao.
-memory = None                       # A memory object to recall events.
+memory = None                       # memories objects to recall events.
+ModSelection = None
+FrontTactil = None
+MiddleTactil = None
+RearTactil = None
 
 # Global variables:
 imgNAO = None                       # Current image from the cam.
@@ -68,15 +71,20 @@ alpha = None                        # Angle (in radian) of Nao's head.
 
 class ModSelectionModule(ALModule):
     """docstring for ModSelection"""
-    def __init__(self, name):
-        Thread.__init__(self)
+    def __init__(self,name):
         ALModule.__init__(self, name)
 
         # Create new object display a colored message on computer's terminal.
-        self.logs = logs()
+        self.logs = logs.logs()
         self.logs.display("tactil initialisation")
         
         # Create new proxies.
+        self.tts = ALProxy("ALTextToSpeech", IP, port)
+        self.logs.display("Subscribed to an ALTextToSpeech proxy",
+                          "Good")
+        self.motion = ALProxy("ALMotion", IP, port)
+        self.logs.display("Subscribed to an ALMotion proxy",
+                          "Good")
         self.posture = ALProxy("ALRobotPosture")
         self.logs.display("Subscribed to an ALRobotPosture proxy",
                           "Good")
@@ -88,16 +96,17 @@ class ModSelectionModule(ALModule):
         # Prepare Nao.
         self.posture.goToPosture("StandInit", 1.0)
         self.logs.display("Nao is going to posture StandInit")
+        self.motion.moveInit()
+        self.logs.display("Initialisation of motion modules")
+
 
         # Ready!
         self.logs.display("Module ready", "Good")
-        ihm = NaoSpeak()
-        ihm.say("Que dois-je faire maître")
+        self.tts.post.say("Que dois-je faire maître")
 
 
-    # select a Mod
+        # select a Mod
 
-    def select_mod (self):
         global FrontTactil
         global MiddleTactil
         global RearTactil      
@@ -107,43 +116,52 @@ class ModSelectionModule(ALModule):
         RearTactil = ALProxy("ALMemory")
 
         FrontTactil.subscribeToEvent("FrontTactilTouched",
-                                     "ModSelectionModule",
+                                     "ModSelection",
                                      "start_memento")
-        MiddleTactil.subscribeToEvent("FrontTactilTouched",
-                                      "ModSelectionModule",
+        MiddleTactil.subscribeToEvent("MiddleTactilTouched",
+                                      "ModSelection",
                                       "start_maestro")
-        RearTactil.subscribeToEvent("FrontTactilTouched",
-                                    "ModSelectionModule",
+        RearTactil.subscribeToEvent("RearTactilTouched",
+                                    "ModSelection",
                                     "start_gato")
 
-    def start_maestro (self):
-        ihm = NaoSpeak()
-        ihm.say("je m'occupe de la clef")
+    def start_memento (self,*_args):
+
+        FrontTactil.unsubscribeToEvent("FrontTactilTouched",
+                                       "ModSelection")
+
+        self.tts.post.say("je m'occupe de la clef")
 
         # Walk to the Door
-        self.motion.moveTo(0.5, 0, 0) # Here will stand homemade C++ locomotion fonction (Vision.cpp) 
-        
+        self.motion.moveTo(0.2, 0, 0) # Here will stand homemade C++ locomotion fonction (Vision.cpp) 
+        self.logs.display("Going to the Door")
 
         # Get the Key
         
 
         # Walk where the Key is suppose to be
-        self.motion.moveTo(0.5, 0, 3.1415) # Here will stand homemade C++ locomotion fonction (Vision.cpp) 
+        self.motion.moveTo(0.2, 0, 3.1415) # Here will stand homemade C++ locomotion fonction (Vision.cpp) 
         
 
         # Drop the Key
 
 
+        FrontTactil.subscribeToEvent("FrontTactilTouched",
+                                     "ModSelection",
+                                     "start_memento")
+
     
 
+    def start_maestro (self,*_args):
 
-    def start_maestro (self):
-        ihm = NaoSpeak()
-        ihm.say("quel jour sommes nous aujourd'hui ?")
+        MiddleTactil.unsubscribeToEvent("MiddleTactilTouched",
+                                        "ModSelection")
+
+        self.tts.post.say("quel jour sommes nous aujourd'hui ?")
 
         # Walk to the Calendar
-        self.motion.moveTo(0.5, 0, 1.57)
-
+        self.motion.moveTo(0.2, 0, 1.57)
+        self.logs.display("Go to the Calendar")
 
         # Read the Calendar
 
@@ -151,19 +169,28 @@ class ModSelectionModule(ALModule):
         # Act depending on the day
 
 
-
+        MiddleTactil.subscribeToEvent("MiddleTactilTouched",
+                                      "ModSelection",
+                                      "start_maestro")
+    
     
 
-    def start_gato(self):
-        ihm = NaoSpeak()
-        ihm.say("c'est l'heure des croquette du chat !")
+    def start_gato(self,*_args):
+
+        RearTactil.unsubscribeToEvent("RearTactilTouched",
+                                      "ModSelection")
+
+        self.tts.post.say("c'est l'heure des croquette du chat !")
 
         # Walk to the Dropper
-        self.motion.moveTo(0.5, 0, -1.57)
-
+        self.motion.moveTo(0.2, 0, -1.57)
+        self.logs.display("Go to the Dropper")
 
         # Turn it On
 
+        RearTactil.subscribeToEvent("RearTactilTouched",
+                                    "ModSelection",
+                                    "start_gato")
 
     
 
@@ -172,39 +199,33 @@ class ModSelectionModule(ALModule):
 def main():
     # Create parser to keep in touch with Nao.
     parser = OptionParser()
-    Challenge = ModSelectionModule()
     parser.set_defaults(pip = IP, pport = port)
     (opts, args_) = parser.parse_args()
     pip = opts.pip
     pport = opts.pport
 
-    global myBroker
-    myBroker = ALBroker("myBroker", "0.0.0.0", 0, pip, pport)
 
+    global myBroker
+    global ModSelection 
+    myBroker = ALBroker("myBroker", "0.0.0.0", 0, pip, pport)
+    
+    ModSelection = ModSelectionModule("ModSelection")
     log = logs.logs()
 
-    # Mod selection *************************************************************
-    while True:
-        Challenge.select_mod()
-        
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print
+        print "Interrupted by user, shutting down"
+        self.tts.post.NaoLeds("ihmLedsOnModule", "on")
+        self.tts.post.say("Je suis prêt à reprendre le travail quand tu veux")
 
-    NaoLedsOnThread = ihm.NaoLeds("ihmLedsOnModule", "on")
-    NaoLedsOnThread.start()
-
-    NaoSpeakThread = ihm.NaoSpeak("ihmSpeakModule",
-                                  "Je suis prêt à reprendre le travail quand tu veux")
-    NaoSpeakThread.start()
-
-    myBroker.shutdown()
-    # Waiting for threads sync:
-    NaoLedsOnThread.join()
-    NaoLedsOnThread = None
-    NaoSpeakThread.join()
-    NaoSpeakThread = None
-
-    log.display("Broker unsubscribed")
-    log.display("NAO IS IDLE", "Good")
-    sys.exit(0)
+        myBroker.shutdown()
+       
+        log.display("Broker unsubscribed")
+        log.display("NAO IS IDLE", "Good")
+        sys.exit(0)
 
 
 # ############################### END FUNCTION ############################## #

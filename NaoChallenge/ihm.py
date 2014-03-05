@@ -22,7 +22,6 @@ import numpy as np                  # Numpy:  Maths library.
 import cv2                          # OpenCV: Visual recognition library.
 import vision_definitions           # Image definitions macros.
 
-from threading import Thread        # Multithreading library.
 from optparse import OptionParser   # Parser to keep connexion with Nao.
 
 import logs
@@ -34,10 +33,10 @@ from naoqi import ALModule
 
 # ###################### CLASS TO HAVE NAO'S SPEAKING ####################### #
 
-class NaoSpeak(Thread, ALModule):
+class NaoSpeak(ALModule):
     """docstring for NaoSpeak"""
     def __init__(self, name, message):
-        Thread.__init__(self)
+    
         ALModule.__init__(self, name)
 
         self.message = message
@@ -47,8 +46,6 @@ class NaoSpeak(Thread, ALModule):
         self.logs.display("Subscribed to an ALTextToSpeech proxy",
                           "Good")
 
-    def run(self):
-        self.say(self.message)
         
 
     def say(self, message, volume=0.3, language='french'):
@@ -63,10 +60,9 @@ class NaoSpeak(Thread, ALModule):
 
 # ####################### CLASS TO CONTROL NAO'S LED ######################## #
 
-class NaoLeds(Thread, ALModule):
+class NaoLeds(ALModule):
     """docstring for NaoLedsOn"""
     def __init__(self, name, state):
-        Thread.__init__(self)
         ALModule.__init__(self, name)
 
         self.state = state
@@ -75,9 +71,6 @@ class NaoLeds(Thread, ALModule):
         self.logs.display("Subscribed to an ALLeds proxy",
                           "Good")
 
-    def run(self):
-        if (self.state is "on"):
-            self.leds.on("FaceLeds")
 
         
 
