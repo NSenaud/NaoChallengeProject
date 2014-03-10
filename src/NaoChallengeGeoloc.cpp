@@ -22,6 +22,7 @@
 #include <array>
 #include <math.h>
 #include <string>
+#include <vector>
 /* Boost headers */
 #include <boost/shared_ptr.hpp>
 /* OpenCV headers */
@@ -40,7 +41,9 @@
 
 
 /* Minimum size of the line no Nao's camera 1 */
-#define MINLINELENGTH 10
+#define MINLINELENGTH 30
+
+#define _USE_MATH_DEFINES
 
 
 using namespace std;
@@ -134,12 +137,10 @@ NaoChallengeGeoloc::NaoChallengeGeoloc(boost::shared_ptr<ALBroker> broker,
     /**
     * Find line on image.
     */
-    functionName("findLine",
+    functionName("followLine",
                  getName(),
-                 "Extract image from Nao");
-    addParam("cam", "Nao's cam to use (0 - high - or 1 - low -)");
-    setReturn("boolean", "Is there a line?");
-    BIND_METHOD(NaoChallengeGeoloc::findLine);
+                 "Follow the line");
+    BIND_METHOD(NaoChallengeGeoloc::followLine);
 
     /**
     * Get line diroection.
@@ -258,10 +259,11 @@ void NaoChallengeGeoloc::registerToVideoDevice(const int &pResolution,
 
     // Call the "subscribe" function with the given parameters.
     if(fCamProxy)
-        fVideoClientName = fCamProxy->subscribe(kOriginalName,
-                                                pResolution,
-                                                pColorSpace,
-                                                kFps);
+        fVideoClientName = fCamProxy->subscribeCamera(kOriginalName,
+                                                      1,
+                                                      pResolution,
+                                                      pColorSpace,
+                                                      kFps);
 
     qiLogInfo("vision.NaoChallengeGeoloc") << "Module registered as " << fVideoClientName << std::endl;
 
@@ -322,7 +324,35 @@ void NaoChallengeGeoloc::sayText(const std::string &toSay)
 }
 
 
-void NaoChallengeGeoloc::findLine()
+void NaoChallengeGeoloc::followLine()
+{
+    bool succeed;
+    cv::vector<cv::Vec4i> lines;
+    float averageX;
+    float averageAngle;
+
+    findLine(succeed, lines);
+
+    if (succeed)
+    {
+        sayText("Je vois cette putain de ligne");
+        directionFromVectors(lines, averageX, averageAngle);
+
+        std::ostringstream toSay;
+        toSay << "La ligne a un angle de" ;
+        toSay << averageAngle;
+        toSay << "degrés";
+
+        sayText(toSay.str());
+    }
+    else
+    {
+        sayText("Je ne vois pas cette mauzeurfokeur de ligne");
+    }
+}
+
+
+void NaoChallengeGeoloc::findLine(bool &succeed, cv::vector<cv::Vec4i> &lines)
 {
     cv::Mat dst, color_dst, hsv, whiteFilter ;
     
@@ -343,6 +373,13 @@ void NaoChallengeGeoloc::findLine()
     {
         throw ALError(getName(), "saveImageLocal", "Invalid image returned.");
     }
+
+    // const int size = imageIn[6].getSize();
+
+    // const int width = (int) imageIn[0];
+    // const int height = (int) imageIn[1];
+    // const int nbLayers = (int) imageIn[2];
+    // const int colorSpace = (int) imageIn[3];
 
     const long long timeStamp = imageIn->getTimeStamp();
     const int seconds = (int)(timeStamp/1000000LL);
@@ -368,7 +405,7 @@ void NaoChallengeGeoloc::findLine()
     xSaveIplImage(dst, "/home/nao/naoqi/Canny", "jpg", seconds);
 
     // Lines detection:
-    cv::vector<cv::Vec4i> lines;
+    // cv::vector<cv::Vec4i> lines;
     cv::HoughLinesP(dst, lines, 1, CV_PI/180.,100, MINLINELENGTH, 5);
 
     for (size_t i = 0 ; i < lines.size() ; i++)
@@ -384,8 +421,60 @@ void NaoChallengeGeoloc::findLine()
     // Now that you're done with the (local) image, you have to release it from the V.I.M.
     fCamProxy->releaseImage(fVideoClientName);
 
+    if (!lines.empty())
+    {
+        succeed = true;
+    }
+    else
+    {
+        succeed = false;
+    }
+
     // return lines;
 }
+
+
+void NaoChallengeGeoloc::directionFromVectors(cv::vector<cv::Vec4i> &lines,
+                          float &averageX,
+                          float &averageAngle)
+{
+    std::vector<float> vectors;
+    int sumX;
+    int x;
+    int y;
+
+    for (int i = 0; i < lines.size(); ++i)
+    {
+        y = lines[i][3]-lines[i][1];
+        x = lines[i][2]-lines[i][0];
+
+        vectors.push_back( (float) atan2(y ,x)*360/(2*M_PI));
+
+        sumX += lines[i][2]+lines[i][0];
+    }
+
+    // Average positon of the line.
+    averageX = sumX/(2*vectors.size());
+
+    // Correction of a positive/negative degres problem.
+    for (int i = 0; i < vectors.size(); ++i)
+    {
+        if (vectors[i] < 0)
+        {
+            vectors[i] = 180 + vectors[i];
+        }
+    }
+
+    // Average computation of line's angle.
+    float angleSum = 0;
+    for (int i = 0; i < vectors.size(); ++i)
+    {
+        angleSum += vectors[i];
+    }
+
+    averageAngle = angleSum/vectors.size();
+}
+
 
 // Actually perform the cvSaveImage operation.
 void NaoChallengeGeoloc::xSaveIplImage(const cv::Mat &img,

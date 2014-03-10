@@ -44,12 +44,14 @@ def main():
         else:
             NCProxy.sayText("J'aime les teletobiz")
 
+            NCProxy.sayText("Et je trouve toujours ça très marrant de me casser la gueule ! Hi Hi Hi!")
+
         print "Registering to ALVideoDevice"
         NCProxy.registerToVideoDevice(vision_definitions.kVGA,
                                       vision_definitions.kBGRColorSpace)
 
-        print "NCProxy.findLine()"
-        NCProxy.findLine()
+        print "NCProxy.followLine()"
+        NCProxy.followLine()
 
         print "unRegister from ALVideoDevice"
         NCProxy.unRegisterFromVideoDevice()

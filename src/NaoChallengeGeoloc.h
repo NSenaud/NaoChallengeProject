@@ -71,9 +71,9 @@ class NaoChallengeGeoloc : public AL::ALModule
         void unRegisterFromVideoDevice();
 
         /**
-        * Find line on image.
+        * Ask Nao to follow the line.
         */
-        void findLine();
+        void followLine();
 
         /**
         * Get line diroection.
@@ -95,6 +95,15 @@ class NaoChallengeGeoloc : public AL::ALModule
         void exit();
 
     private:
+        /**
+        * Find line on image.
+        */
+        void findLine(bool &succeed, cv::vector<cv::Vec4i> &lines);
+
+        void directionFromVectors(cv::vector<cv::Vec4i> &lines,
+                                  float &averageX,
+                                  float &averageAngle);
+
         // Actually perform the cvSaveImage operation.
         void xSaveIplImage(const cv::Mat& img, const std::string& name,
                            const std::string& format,
