@@ -1,3 +1,19 @@
+/**************************************************************************** *
+* *                  Nao Challenge 2014 Location Library                    * *
+* *************************************************************************** *
+* * File: main.cpp                                                          * *
+# *************************************************************************** *
+* * Creation:   2014-02-27                                                  * *
+* *                                                                         * *
+* * Team:       IUT de Cachan                                               * *
+* *                                                                         * *
+* * Authors:    Nicolas SENAUD                                              * *
+* *             Pierre-Guillaume LEGUAY                                     * *
+* *             Nicolas SAREMBAUD                                           * *
+* *                                                                         * *
+* ****************************************************************************/
+
+
 #include "NaoChallengeGeoloc.h"
 
 #include <boost/shared_ptr.hpp>
@@ -16,19 +32,20 @@
 
 extern "C"
 {
-  ALCALL int _createModule(boost::shared_ptr<AL::ALBroker> broker)
-  {
-    // init broker with the main broker instance
-    // from the parent executable
-    AL::ALBrokerManager::setInstance(broker->fBrokerManager.lock());
-    AL::ALBrokerManager::getInstance()->addBroker(broker);
-    // create module instances
-    AL::ALModule::createModule<NaoChallengeGeoloc>(broker, "NaoChallengeGeoloc");
-    return 0;
-  }
+    ALCALL int _createModule(boost::shared_ptr<AL::ALBroker> broker)
+    {
+        // init broker with the main broker instance
+        // from the parent executable
+        AL::ALBrokerManager::setInstance(broker->fBrokerManager.lock());
+        AL::ALBrokerManager::getInstance()->addBroker(broker);
+        // create module instances
+        AL::ALModule::createModule<AL::NaoChallengeGeoloc>(broker,
+                                                       "NaoChallengeGeoloc");
+        return 0;
+    }
 
-  ALCALL int _closeModule()
-  {
-    return 0;
-  }
+    ALCALL int _closeModule()
+    {
+        return 0;
+    }
 } // extern "C"
