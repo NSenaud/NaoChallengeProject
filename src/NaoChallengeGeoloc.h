@@ -98,7 +98,9 @@ class NaoChallengeGeoloc : public AL::ALModule
         /**
         * Find line on image.
         */
-        void findLine(bool &succeed, cv::vector<cv::Vec4i> &lines);
+        void findLine(bool &succeed,
+                      cv::vector<cv::Vec4i> &lines,
+                      long long &timeStamp);
 
         void directionFromVectors(cv::vector<cv::Vec4i> &lines,
                                   float &averageX,
@@ -109,10 +111,16 @@ class NaoChallengeGeoloc : public AL::ALModule
                            const std::string& format,
                            int seconds);
 
+        // ALProxies
         boost::shared_ptr<AL::ALProxy> speechProxy;
+        boost::shared_ptr<AL::ALProxy> moveProxy;
+        boost::shared_ptr<AL::ALProxy> postureProxy;
 
         // Proxy to the video input module.
         boost::shared_ptr<AL::ALVideoDeviceProxy> fCamProxy;
+
+        // Nao's direction (in raidian):
+        // std::float averageAngle;
 
         // Client name that is used to talk to the Video Device.
         std::string fVideoClientName;

@@ -21,7 +21,10 @@
 #include <iostream>
 #include <array>
 #include <math.h>
+#include <pthread.h>
 #include <string>
+#include <time.h>
+#include <unistd.h>
 #include <vector>
 /* Boost headers */
 #include <boost/shared_ptr.hpp>
@@ -37,7 +40,9 @@
 #include <alproxies/alvideodeviceproxy.h>
 #include <alvision/alvisiondefinitions.h>
 #include <alvision/alimage.h>
+// #include <consoleloghandler.hpp>
 #include <qi/log.hpp>
+#include <qi/os.hpp>
 
 
 /* Minimum size of the line no Nao's camera 1 */
@@ -152,8 +157,10 @@ NaoChallengeGeoloc::NaoChallengeGeoloc(boost::shared_ptr<ALBroker> broker,
     // setReturn("direction", "Direction of line");
     // BIND_METHOD(NaoChallengeGeoloc::getDirection);
 
-    // We create a proxy for the ALTextToSpeech module
+    // We create proxies
     speechProxy = getParentBroker()->getProxy("ALTextToSpeech");
+    moveProxy = getParentBroker()->getProxy("ALMotion");
+    postureProxy = getParentBroker()->getProxy("ALRobotPosture");
 }
 
 
@@ -230,7 +237,7 @@ void NaoChallengeGeoloc::registerToVideoDevice(const int &pResolution,
     int imgHeight = 0;
     int imgNbLayers = 0;
     const int kImgDepth = 8;
-    const int kFps = 5;
+    const int kFps = 10;
 
     // Release Image Header if it has been allocated before.
     if (!ImgSrc.empty()) ImgSrc.release();
@@ -310,12 +317,15 @@ void NaoChallengeGeoloc::sayText(const std::string &toSay)
     std::cout << "Saying the phrase in the console..." << std::endl;
     std::cout << toSay << std::endl;
   
+    // speechProxy->callVoid("setVoice", "Kenny22Enhanced");
+    speechProxy->callVoid("setVolume", 0.55f);
+
     try
     {
         speechProxy->callVoid("say", toSay);
     }
   
-    catch(const AL::ALError&)
+    catch (const AL::ALError&)
     {
         qiLogError("module.NaoChallengeGeoloc") 
             << "Could not get proxy to ALTextToSpeech"
@@ -328,31 +338,132 @@ void NaoChallengeGeoloc::followLine()
 {
     bool succeed;
     cv::vector<cv::Vec4i> lines;
+    long long timeStamp;
     float averageX;
+    float oldAverageX = 320;
     float averageAngle;
+    float oldAverageAngle = 0.f;
+    float consigne;
+    int fail = 0;
 
-    findLine(succeed, lines);
+    time_t now;
 
-    if (succeed)
+    // moveProxy->callVoid("wakeUp");
+    postureProxy->callVoid("goToPosture",
+                           (std::string) "StandInit",
+                           1.0f);
+
+    std::ostringstream toSay;
+    toSay << "Je suis prêt!" ;
+    sayText(toSay.str());
+
+    while(fail < 5)
     {
-        sayText("Je vois cette putain de ligne");
-        directionFromVectors(lines, averageX, averageAngle);
+        findLine(succeed, lines, timeStamp);
 
-        std::ostringstream toSay;
-        toSay << "La ligne a un angle de" ;
-        toSay << averageAngle;
-        toSay << "degrés";
+        if (succeed)
+        {
+            directionFromVectors(lines, averageX, averageAngle);           
 
-        sayText(toSay.str());
+            /* ********************* Correction Module ********************* */
+
+            averageAngle -= 90; // Place the center at zero.
+            averageAngle = -averageAngle;
+
+            if (averageAngle < -15)
+            {
+                averageAngle = -15;
+            }
+            else if (averageAngle > 15)
+            {
+                averageAngle = 15;
+            }
+
+
+            if (averageX > 340)
+            {
+                qiLogInfo("NaoChallengeGeoloc")
+                    << "Nao is on the left of the line" << endl;
+
+                if ((oldAverageX - averageX) > 0)
+                {
+                    qiLogInfo("NaoChallengeGeoloc")
+                        << "Nao is leaving the line" << endl;
+
+                    averageAngle = (averageAngle - oldAverageAngle)/2;
+                }
+
+            }
+            else if (averageX < 300)
+            {
+                qiLogInfo("NaoChallengeGeoloc")
+                    << "Nao is on the right of the line" << endl;
+
+                if ((oldAverageX - averageX) < 0)
+                {
+                    qiLogInfo("NaoChallengeGeoloc")
+                        << "Nao is leaving the line" << endl;
+
+                    averageAngle = (averageAngle - oldAverageAngle)/2;
+                }
+            }
+
+            else
+            {
+                qiLogInfo("NaoChallengeGeoloc")
+                    << "Nao is on the line" << endl;
+
+                averageAngle = (averageAngle+oldAverageAngle)/2;
+            }
+
+            oldAverageX     = averageX;
+            oldAverageAngle = averageAngle;
+
+            /* ********************* Correction Module ********************* */
+            
+            // Radian Conversion.
+            consigne = averageAngle*CV_PI/180;
+            qiLogInfo("NaoChallengeGeoloc")
+                << "Angle: " << consigne << endl;
+
+            // time(&now);
+            // const char msg = (char) difftime(now, (time_t) timeStamp);
+
+            // if (!(moveProxy->call("isRunning")))
+            // {
+                moveProxy->pCall("moveTo",
+                                 (float) 0.05f,
+                                 (float) 0.0f,
+                                 (float) consigne);
+            // }
+
+            usleep(1000*110);
+        }
+        else
+        {
+            moveProxy->callVoid("stop");
+            sayText("Je ne vois pas la ligne");
+            ++fail;
+        }
     }
-    else
-    {
-        sayText("Je ne vois pas cette mauzeurfokeur de ligne");
-    }
+
+    postureProxy->callVoid("goToPosture",
+                           (std::string) "Crouch",
+                           1.0f);
+
+    sayText("Trop d'échecs, je boude.");
+
+    // usleep(1000*5000);
+
+    moveProxy->callVoid("setStiffnesses",
+                        (AL::ALValue) "Body",
+                        (AL::ALValue) 0.0f);
 }
 
 
-void NaoChallengeGeoloc::findLine(bool &succeed, cv::vector<cv::Vec4i> &lines)
+void NaoChallengeGeoloc::findLine(bool &succeed,
+                                  cv::vector<cv::Vec4i> &lines,
+                                  long long &timeStamp)
 {
     cv::Mat dst, color_dst, hsv, whiteFilter ;
     
@@ -381,7 +492,7 @@ void NaoChallengeGeoloc::findLine(bool &succeed, cv::vector<cv::Vec4i> &lines)
     // const int nbLayers = (int) imageIn[2];
     // const int colorSpace = (int) imageIn[3];
 
-    const long long timeStamp = imageIn->getTimeStamp();
+    timeStamp = imageIn->getTimeStamp();
     const int seconds = (int)(timeStamp/1000000LL);
 
     ImgSrc.data = imageIn->getData();;
@@ -401,8 +512,8 @@ void NaoChallengeGeoloc::findLine(bool &succeed, cv::vector<cv::Vec4i> &lines)
     cv::cvtColor(color_dst, dst, cv::COLOR_BGR2GRAY);
     cv::Canny(dst, dst, 30, 180, 3);
 
-    ImgSrc = dst;
-    xSaveIplImage(dst, "/home/nao/naoqi/Canny", "jpg", seconds);
+    // ImgSrc = dst;
+    // xSaveIplImage(dst, "/home/nao/naoqi/Canny", "jpg", seconds);
 
     // Lines detection:
     // cv::vector<cv::Vec4i> lines;
@@ -416,7 +527,7 @@ void NaoChallengeGeoloc::findLine(bool &succeed, cv::vector<cv::Vec4i> &lines)
     }
 
     ImgSrc = color_dst;
-    xSaveIplImage(color_dst, "/home/nao/naoqi/color_dst", "jpg", seconds);
+    // xSaveIplImage(color_dst, "/home/nao/naoqi/color_dst", "jpg", seconds);
 
     // Now that you're done with the (local) image, you have to release it from the V.I.M.
     fCamProxy->releaseImage(fVideoClientName);
@@ -435,22 +546,45 @@ void NaoChallengeGeoloc::findLine(bool &succeed, cv::vector<cv::Vec4i> &lines)
 
 
 void NaoChallengeGeoloc::directionFromVectors(cv::vector<cv::Vec4i> &lines,
-                          float &averageX,
-                          float &averageAngle)
+                                              float &averageX,
+                                              float &averageAngle)
 {
     std::vector<float> vectors;
-    int sumX;
+    int sumX = 0;
     int x;
     int y;
 
     for (int i = 0; i < lines.size(); ++i)
     {
-        y = lines[i][3]-lines[i][1];
-        x = lines[i][2]-lines[i][0];
+        qiLogInfo("NaoChallengeGeoloc")
+                << "lines[i][3]: " << lines[i][3] << endl;
+        if (lines[i][3] > 300 || lines[i][1] > 300)
+        {
+            y = lines[i][3]-lines[i][1];
+            x = lines[i][2]-lines[i][0];
 
-        vectors.push_back( (float) atan2(y ,x)*360/(2*M_PI));
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
 
-        sumX += lines[i][2]+lines[i][0];
+            sumX += lines[i][2];
+            sumX += lines[i][0];
+        }
+        else
+        {
+            y = lines[i][3]-lines[i][1];
+            x = lines[i][2]-lines[i][0];
+
+            vectors.push_back( (float) atan2(y ,x)*360/(2*CV_PI));
+
+            sumX += lines[i][2];
+            sumX += lines[i][0];
+        }
     }
 
     // Average positon of the line.
