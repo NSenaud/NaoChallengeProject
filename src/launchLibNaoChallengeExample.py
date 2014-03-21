@@ -6,7 +6,6 @@
 
 from naoqi import ALProxy
 import vision_definitions
-import random
 import time
 
 
@@ -26,16 +25,12 @@ def main():
         return(1)
 
     try:
-        rand = random.randrange(8)
-
         print "Registering to ALVideoDevice"
         NCProxy.registerToVideoDevice(vision_definitions.kVGA,
                                       vision_definitions.kBGRColorSpace)
 
-        print "NCProxy.followLine()"
-        NCProxy.followLine()
-
-        # time.sleep(15)
+        print "Walk from 270 to 220"
+        NCProxy.walkFromDmtxToDmtx(270, 220)
 
         print "unRegister from ALVideoDevice"
         NCProxy.unRegisterFromVideoDevice()

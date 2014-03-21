@@ -73,7 +73,13 @@ class NaoChallengeGeoloc : public AL::ALModule
         /**
         * Ask Nao to follow the line.
         */
-        void followLine();
+        void walkFromDmtxToDmtx(const int &fromDatamatrix,
+                                const int &toDatamatrix);
+
+        /**
+        * Ask Nao to stop.
+        */
+        void stopWalk();
 
         /**
         * Get line diroection.

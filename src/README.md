@@ -17,11 +17,8 @@ NCProxy = ALProxy('NaoChallengeModule', '127.0.0.1', 9559)
 # Register our module to the Video Input Module.
 NCProxy.registerToVideoDevice(1, 13)
 
-# Get line direction
-direction = NCProxy.getDirection()	# Not available currently
-
-# Save image in remote mode.
-NCProxy.saveImageRemote('/home/nao/img', 'jpg')
+# Go from Datamatrix 270 to Datamatrix 220
+NCProxy.walkFromDmtxToDmtx(270, 220)
 
 # Unregister.
 NCProxy.unRegisterFromVideoDevice()
