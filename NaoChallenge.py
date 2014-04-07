@@ -19,7 +19,6 @@
 import sys
 import time
 import numpy as np                  # Numpy:  Maths library.
-#import cv2                          # OpenCV: Visual recognition library.
 import vision_definitions           # Image definitions macros.
 
 from optparse import OptionParser   # Parser to keep connexion with Nao.
@@ -133,18 +132,35 @@ class ModSelectionModule(ALModule):
         self.tts.post.say("je m'occupe de la clef")
 
         # Walk to the Door
-        self.motion.moveTo(0.2, 0, 0) # Here will stand homemade C++ locomotion fonction (Vision.cpp) 
-        self.logs.display("Going to the Door")
+        try:
+            print "Creating NaoChallengeGeoloc proxy to ", IP
+            NCProxy = ALProxy("NaoChallengeGeoloc",IP,PORT)
 
-        # Get the Key
-        
+        except Exception,e:
+            print "Error when creating NaoChallengeGeoloc proxy:"
+            print str(e)
+            return(1)
 
-        # Walk where the Key is suppose to be
-        self.motion.moveTo(0.2, 0, 3.1415) # Here will stand homemade C++ locomotion fonction (Vision.cpp) 
-        
+        try:
+            print "Registering to ALVideoDevice"
+            NCProxy.registerToVideoDevice(vision_definitions.kVGA,
+                                          vision_definitions.kBGRColorSpace)
 
-        # Drop the Key
+            print "Walk from 270 to 220"
+            NCProxy.post.walkFromDmtxToDmtx(270, 220)
+            self.logs.display("Going to the Door")
 
+            # Get the Key
+
+            # Drop the Key
+
+        except KeyboardInterrupt:
+            NCProxy.unsubscribeCamera()
+
+        except Exception,e:
+            print "NaoChallengeGeoloc test Failed:"
+            print str(e)
+            return(1)
 
         FrontTactil.subscribeToEvent("FrontTactilTouched",
                                      "ModSelection",

@@ -1,4 +1,21 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+# -*- coding:Utf-8 -*-
+
+# ########################################################################### #
+# #                          Nao Challenge 2014                             # #
+# ########################################################################### #
+# # File: readDataMatrix.py                                                 # #
+# ########################################################################### #
+# # Creation:   2014-04-07                                                  # #
+# #                                                                         # #
+# # Team:       IUT de Cachan                                               # #
+# #                                                                         # #
+# # Authors:    Nicolas SENAUD                                              # #
+# #             Pierre-Guillaume LEGUAY                                     # #
+# #             Nicolas SAREMBAUD                                           # #
+# #                                                                         # #
+# ########################################################################### #
+
 """
     Read Datamatrix with ALDataMatrixDetection and create event with ALMemory.
 """

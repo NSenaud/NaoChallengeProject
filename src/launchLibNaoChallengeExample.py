@@ -1,4 +1,21 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+# -*- coding:Utf-8 -*-
+
+# ########################################################################### #
+# #                          Nao Challenge 2014                             # #
+# ########################################################################### #
+# # File: launchLibNaoChallengeExample.py                                   # #
+# ########################################################################### #
+# # Creation:   2014-03-10                                                  # #
+# #                                                                         # #
+# # Team:       IUT de Cachan                                               # #
+# #                                                                         # #
+# # Authors:    Nicolas SENAUD                                              # #
+# #             Pierre-Guillaume LEGUAY                                     # #
+# #             Nicolas SAREMBAUD                                           # #
+# #                                                                         # #
+# ########################################################################### #
+
 """
     Simplest python script to lauch the NaoChallengeGeoloc module.
 """
