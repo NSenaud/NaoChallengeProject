@@ -36,6 +36,7 @@
 #include <alcommon/albroker.h>
 #include <alcommon/almodule.h>
 #include <alcommon/alproxy.h>
+#include <alproxies/almemoryproxy.h>
 #include <alproxies/altexttospeechproxy.h>
 #include <alproxies/alvideodeviceproxy.h>
 #include <alvision/alvisiondefinitions.h>
@@ -112,6 +113,12 @@ NaoChallengeGeoloc::NaoChallengeGeoloc(boost::shared_ptr<ALBroker> broker,
                  "Unregister from the V.I.M." );
     BIND_METHOD(NaoChallengeGeoloc::unRegisterFromVideoDevice);
 
+
+    functionName("onDatamatrixDetection",
+                 getName(),
+                 "run onDatamatrixDetection" );
+    BIND_METHOD(NaoChallengeGeoloc::onDatamatrixDetection);
+
     /**
     * Walk.
     */
@@ -169,6 +176,18 @@ void NaoChallengeGeoloc::init()
         NaoChallengeGeoloc::exit();
         return;
     }
+
+    // Create a proxy to the ALMemoryProxy.
+    try {
+        fMemoryProxy = boost::shared_ptr<ALMemoryProxy>(new ALMemoryProxy(getParentBroker()));
+    }
+    catch (const AL::ALError& e) {
+        qiLogError("memory.NaoChallengeGeoloc") 
+            << "Error while getting proxy on ALMemoryProxy.  Error msg "
+            << e.toString() << std::endl;
+        NaoChallengeGeoloc::exit();
+        return;
+    }
   
     if(fCamProxy == NULL)
     {
@@ -207,7 +226,7 @@ void NaoChallengeGeoloc::registerToVideoDevice(const int &pResolution,
     int imgHeight = 0;
     int imgNbLayers = 0;
     const int kImgDepth = 8;
-    const int kFps = 10;
+    const int kFps = 3;
 
     // Release Image Header if it has been allocated before.
     if (!ImgSrc.empty()) ImgSrc.release();
@@ -309,6 +328,14 @@ void NaoChallengeGeoloc::stopWalk()
 }
 
 
+void NaoChallengeGeoloc::onDatamatrixDetection(const std::string &key,
+                                               const AL::ALValue &value,
+                                               const AL::ALValue &message)
+{
+    Datamatrix = value;
+}
+
+
 void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                                             const int &toDatamatrix)
 {
@@ -320,9 +347,21 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     float averageAngle;
     float oldAverageAngle = 0.f;
     float consigne;
+    float oldConsigne = 0;
     int fail = 0;
 
+    AL::ALValue articulation = "HeadYaw";
+
     time_t now;
+
+    if(fMemoryProxy)
+    {
+        fMemoryProxy->subscribeToEvent("DatamatrixDetection",
+                                       "NaoChallengeGeoloc",
+                                       "onDatamatrixDetection");
+    }
+
+    qiLogInfo("vision.NaoChallengeGeoloc") << "Module registered as " << fVideoClientName << std::endl;
 
     // moveProxy->callVoid("wakeUp");
     postureProxy->callVoid("goToPosture",
@@ -352,8 +391,8 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
 
         case 270:   consigne = -45*CV_PI/180;    // 45 degres in radians.
                     moveProxy->pCall("moveTo",
-                                     (float) 0.3f,
-                                     (float) 0.3f,
+                                     (float)  0.3f,
+                                     (float) -0.3f,
                                      (float) consigne);
 
                     qiLogInfo("NaoChallengeGeoloc")
@@ -369,10 +408,26 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     }
 
 
-    while(fail < 1000)
+    while(fail < 100)
     {
         qiLogInfo("NaoChallengeGeoloc")
-                << "------------ [ NEW LOOP ITERATION ] ------------" << endl;
+            << "------------ [ NEW LOOP ITERATION ] ------------" << endl;
+        
+        qiLogInfo("NaoChallengeGeoloc")
+            << "toDatamatrix = " << toDatamatrix
+            << "\nDatamatrix = " << (std::string) Datamatrix
+            << endl;
+
+        // Reach Datamatrix !
+        std::string DatamatrixString = (std::string) Datamatrix ;
+        ostringstream toDatamatrixString;
+        toDatamatrixString << toDatamatrix ;
+        if (DatamatrixString == toDatamatrixString.str())
+        {
+            sayText("Datamatrice de destination atteinte");
+
+            break;
+        }
 
         findLine(succeed, lines, timeStamp);
 
@@ -396,7 +451,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                 << "Position de la ligne (pixel): " << averageX << endl;
 
 
-            if (averageX > 280)
+            if (averageX > 80)
             {
                 qiLogInfo("NaoChallengeGeoloc")
                     << "Nao is on the LEFT of the line" << endl;
@@ -405,58 +460,13 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
 
                 averageAngle = -15;
             }
-            else if (averageX > 80)
-            {
-                qiLogInfo("NaoChallengeGeoloc")
-                    << "Nao is on the LEFT of the line" << endl;
-
-                if ((oldAverageX - averageX) > 10)
-                {
-                    qiLogInfo("NaoChallengeGeoloc")
-                        << "Nao is leaving the line" << endl;
-
-                    if(averageAngle < 0)
-                        averageAngle = (averageAngle - oldAverageAngle)/2;
-                    else
-                        averageAngle = -(averageAngle+oldAverageAngle)/2;
-                }
-                else
-                {
-                    qiLogInfo("NaoChallengeGeoloc")
-                        << "Nao is joining the line" << endl;
-                    averageAngle = (averageAngle+oldAverageAngle)/2;
-                }
-            }
-            else if (averageX < -280)
+            else if (averageX < -80)
             {
                 qiLogInfo("NaoChallengeGeoloc")
                     << "Nao is on the RIGHT of the line" << endl;
                 qiLogInfo("NaoChallengeGeoloc")
                         << "/!\\ Nao is loosing the line!" << endl;
                 averageAngle = 15;
-            }
-            else if (averageX < -80)
-            {
-                qiLogInfo("NaoChallengeGeoloc")
-                    << "Nao is on the RIGHT of the line" << endl;
-
-                if ((oldAverageX - averageX) < -10)
-                {
-                    qiLogInfo("NaoChallengeGeoloc")
-                        << "Nao is leaving the line" << endl;
-
-                    if(averageAngle > 0)
-                        averageAngle = (averageAngle - oldAverageAngle)/2;
-                    else
-                        averageAngle = -(averageAngle+oldAverageAngle)/2;
-                }
-                else
-                {
-                    qiLogInfo("NaoChallengeGeoloc")
-                        << "Nao is joining the line" << endl;
-                    averageAngle = (averageAngle+oldAverageAngle)/2;
-                }
-                
             }
             else
             {
@@ -469,40 +479,62 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             oldAverageX     = averageX;
             oldAverageAngle = averageAngle;
 
-            /* ********************* Correction Module ********************* */
             
             // Radian Conversion.
             consigne = averageAngle*CV_PI/180;
+
+            // Security
+            if (consigne < -2.5)
+            {
+                consigne = -2.5;
+            }
+            else if (consigne > 2.5)
+            {
+                consigne = 2.5;
+            }
+            else if (!(consigne > -2.5 && consigne < 2.5))
+            {
+                consigne = -oldConsigne;
+            }
+
             qiLogInfo("NaoChallengeGeoloc")
                 << "Consigne (Degres): " << averageAngle << endl;
             qiLogInfo("NaoChallengeGeoloc")
                 << "Consigne (Radian): " << consigne << endl;
 
+            AL::ALValue articulation = "HeadYaw";
+
+            moveProxy->pCall("angleInterpolation",
+                             articulation,
+                             (AL::ALValue) consigne, // (((float) atan((float) 80*averageX/35200))*CV_PI/180),
+                             (AL::ALValue) 0.1f,
+                             (bool) true);
+
             moveProxy->pCall("moveTo",
-                             (float) 0.1f,
+                             (float) 0.05f,
                              (float) 0.0f,
                              (float) consigne);
 
-            usleep(1000*250);
+            oldConsigne = consigne;
+
+            usleep(1000*500);   // 500 ms.
         }
         else
         {
-            // sayText("Je ne vois pas la ligne");
             ++fail;
-            moveProxy->pCall("moveTo",
-                             (float) 0.1f,
-                             (float) 0.0f,
-                             (float) -consigne);
+            moveProxy->pCall("angleInterpolation",
+                             articulation,
+                             (AL::ALValue) -consigne,
+                             (AL::ALValue) 0.5f,
+                             (bool) true);
         }
     }
 
     postureProxy->callVoid("goToPosture",
                            (std::string) "Crouch",
-                           1.0f);
+                           0.5f);
 
     sayText("Blope blop blop");
-
-    // usleep(1000*5000);
 
     moveProxy->callVoid("setStiffnesses",
                         (AL::ALValue) "Body",
@@ -606,6 +638,8 @@ void NaoChallengeGeoloc::directionFromVectors(cv::vector<cv::Vec4i> &lines,
 
     if (vectors.size() == 0)
     {
+        qiLogInfo("NaoChallengeGeoloc")
+                << "!!!!!!!!!!!!!!!!!! [ CAUTION ] !!!!!!!!!!!!!!!!!" << endl;
         for (int i = 0; i < lines.size(); ++i)
         {
             y = lines[i][3]-lines[i][1];
@@ -630,8 +664,16 @@ void NaoChallengeGeoloc::directionFromVectors(cv::vector<cv::Vec4i> &lines,
             vectors[i] = 180 + vectors[i];
         }
 
-        // Average computation of line's angle.
-        angleSum += vectors[i];
+        // Keep safe from horizontal lines... 
+        if (vectors[i] > 150 || vectors[i] < 30)
+        {
+            vectors.erase(vectors.begin() + i);
+            i -= 1;
+        }
+        else
+        {
+            angleSum += vectors[i];
+        }
     }
 
     averageAngle = angleSum/vectors.size();

@@ -1,7 +1,6 @@
-
 # -*- coding: utf-8 -*-
 """
-    Simple python script to test the NaoChallengeGeoloc module
+    Simplest python script to lauch the NaoChallengeGeoloc module.
 """
 
 from naoqi import ALProxy
@@ -35,6 +34,8 @@ def main():
         print "unRegister from ALVideoDevice"
         NCProxy.unRegisterFromVideoDevice()
 
+    except KeyboardInterrupt:
+        NCProxy.unsubscribeCamera()
 
     except Exception,e:
         print "NaoChallengeGeoloc test Failed:"

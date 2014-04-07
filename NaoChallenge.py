@@ -19,7 +19,7 @@
 import sys
 import time
 import numpy as np                  # Numpy:  Maths library.
-import cv2                          # OpenCV: Visual recognition library.
+#import cv2                          # OpenCV: Visual recognition library.
 import vision_definitions           # Image definitions macros.
 
 from optparse import OptionParser   # Parser to keep connexion with Nao.

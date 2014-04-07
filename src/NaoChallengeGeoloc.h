@@ -31,6 +31,7 @@
 # include <alcommon/albroker.h>
 # include <alcommon/almodule.h>
 # include <alcommon/alproxy.h>
+# include <alproxies/almemoryproxy.h>
 # include <alproxies/altexttospeechproxy.h>
 # include <alproxies/alvideodeviceproxy.h>
 # include <qi/log.hpp>
@@ -81,10 +82,10 @@ class NaoChallengeGeoloc : public AL::ALModule
         */
         void stopWalk();
 
-        /**
-        * Get line diroection.
-        */
-        // void getDirection(cv::vector<cv::Vec4i> vectors);
+        // Datamatrix Events Reception:
+        void onDatamatrixDetection(const std::string &key,
+                                   const AL::ALValue &value,
+                                   const AL::ALValue &message);
 
         /**
         * saveImage : save the last image received.
@@ -92,6 +93,9 @@ class NaoChallengeGeoloc : public AL::ALModule
         */
         void saveImageLocal(const std::string& pName,
                             const std::string& imageFormat);
+
+        // Datamatrix:
+        AL::ALValue Datamatrix;
 
         /** Overloading ALModule::init().
         * This is called right after the module has been loaded
@@ -122,17 +126,20 @@ class NaoChallengeGeoloc : public AL::ALModule
         boost::shared_ptr<AL::ALProxy> moveProxy;
         boost::shared_ptr<AL::ALProxy> postureProxy;
 
+
         // Proxy to the video input module.
         boost::shared_ptr<AL::ALVideoDeviceProxy> fCamProxy;
-
-        // Nao's direction (in raidian):
-        // std::float averageAngle;
 
         // Client name that is used to talk to the Video Device.
         std::string fVideoClientName;
 
         // This is set to true when we have subscribed one module to the VideoDevice.
         bool fRegisteredToVideoDevice;
+
+
+        // Proxy to memory proky.
+        boost::shared_ptr<AL::ALMemoryProxy> fMemoryProxy;
+
 
         // Just a IplImage header to wrap around our camera image buffer.
         // This object doesn't own the image buffer.
