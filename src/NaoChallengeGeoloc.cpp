@@ -34,6 +34,7 @@
 #include <alcommon/albroker.h>
 #include <alcommon/almodule.h>
 #include <alcommon/alproxy.h>
+#include <alproxies/alledsproxy.h>
 #include <alproxies/almemoryproxy.h>
 #include <alproxies/altexttospeechproxy.h>
 #include <alproxies/alvideodeviceproxy.h>
@@ -136,6 +137,7 @@ NaoChallengeGeoloc::NaoChallengeGeoloc(boost::shared_ptr<ALBroker> broker,
     speechProxy = getParentBroker()->getProxy("ALTextToSpeech");
     moveProxy = getParentBroker()->getProxy("ALMotion");
     postureProxy = getParentBroker()->getProxy("ALRobotPosture");
+    ledsProxy = getParentBroker()->getProxy("ALLeds");
 }
 
 
@@ -175,13 +177,13 @@ void NaoChallengeGeoloc::init()
         return;
     }
 
-    // Create a proxy to the ALMemoryProxy.
+    // Create a proxy to the ALMemory.
     try {
         fMemoryProxy = boost::shared_ptr<ALMemoryProxy>(new ALMemoryProxy(getParentBroker()));
     }
     catch (const AL::ALError& e) {
         qiLogError("memory.NaoChallengeGeoloc") 
-            << "Error while getting proxy on ALMemoryProxy.  Error msg "
+            << "Error while getting proxy on ALMemory.  Error msg "
             << e.toString() << std::endl;
         NaoChallengeGeoloc::exit();
         return;
@@ -358,12 +360,6 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     qiLogInfo("vision.NaoChallengeGeoloc")
         << "Module registered as " << fVideoClientName << std::endl;
 
-    postureProxy->callVoid("goToPosture",
-                           (std::string) "StandInit",
-                           1.0f);
-
-    sayText("Je suis prêt!");
-
     qiLogInfo("NaoChallengeGeoloc")
         << "Start from " << fromDatamatrix << endl;
 
@@ -382,7 +378,11 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
 
         case 260:   break;
 
-        case 270:   consigne = -45*CV_PI/180;    // 45 degres in radians.
+        case 270:   postureProxy->callVoid("goToPosture",
+                           (std::string) "StandInit",
+                           1.0f);
+
+                    consigne = -45*CV_PI/180;    // 45 degres in radians.
                     moveProxy->pCall("moveTo",
                                      (float)  0.3f,
                                      (float) -0.3f,
@@ -417,7 +417,8 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         toDatamatrixString << toDatamatrix ;
         if (DatamatrixString == toDatamatrixString.str())
         {
-            sayText("Datamatrice de destination atteinte");
+            ledsProxy->pCall("rasta",
+                             (float) 8.0f);
             break;
         }
 
@@ -504,6 +505,11 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                              (float) 0.05f,
                              (float) 0.0f,
                              (float) consigne);
+
+            ledsProxy->pCall("earLedsSetAngle",
+                             (int)   averageAngle,
+                             (float) 0.5f,
+                             (bool)  false);
 
             oldConsigne = consigne;
 

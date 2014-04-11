@@ -29,6 +29,7 @@
 # include <alcommon/albroker.h>
 # include <alcommon/almodule.h>
 # include <alcommon/alproxy.h>
+# include <alproxies/alledsproxy.h>
 # include <alproxies/almemoryproxy.h>
 # include <alproxies/altexttospeechproxy.h>
 # include <alproxies/alvideodeviceproxy.h>
@@ -123,6 +124,7 @@ class NaoChallengeGeoloc : public AL::ALModule
         boost::shared_ptr<AL::ALProxy> speechProxy;
         boost::shared_ptr<AL::ALProxy> moveProxy;
         boost::shared_ptr<AL::ALProxy> postureProxy;
+        boost::shared_ptr<AL::ALProxy> ledsProxy;
 
 
         // Proxy to the video input module.

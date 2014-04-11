@@ -18,6 +18,7 @@
     Read Datamatrix with ALDataMatrixDetection and create event with ALMemory.
 """
 
+import sys
 from naoqi import ALProxy
 # from naoqi import ALMemory
 import time
@@ -31,7 +32,6 @@ def main():
     print 'START readDataMatrix MODULE'
 
     # *** Proxies Creation ***
-
     try:
         # Datamatrix Detection Proxy creation:
         print "Creating ALDataMatrixDetection proxy to ", IP
@@ -54,10 +54,10 @@ def main():
 
     try:
         # Text To Speech Proxy creation:
-        print "Creating ALTextToSpeech proxy to ", IP       
-        TTSProxy = ALProxy("ALTextToSpeech", IP, Port)
+        print "Creating ALLeds proxy to ", IP       
+        ALedsProxy = ALProxy("ALLeds", IP, Port)
     except Exception,e:
-        print "Error when creating ALTextToSpeech proxy:"
+        print "Error when creating ALLeds proxy:"
         print str(e)
         return(4)
 
@@ -87,7 +87,9 @@ def main():
                 # Create Datamatrix Detection Event:
                 DNProxy.raiseEvent("DatamatrixDetection", DataMatrixValue)
 
-                TTSProxy.say(DataMatrixValue)
+                ALedsProxy.off('FaceLeds')
+                time.sleep(0.5)
+                ALedsProxy.on('FaceLeds')
 
             time.sleep(1)
 
@@ -101,4 +103,4 @@ def main():
         return(1)
 
 if __name__ == "__main__":
-  exit (main()) 
+    exit (main()) 
