@@ -6,13 +6,11 @@
 # ########################################################################### #
 # # File: getCalendarDay.py                                                 # #
 # ########################################################################### #
-# # Creation:   2014-03-10                                                  # #
+# # Creation:   2014-04-07                                                  # #
 # #                                                                         # #
 # # Team:       IUT de Cachan                                               # #
 # #                                                                         # #
-# # Authors:    Nicolas SENAUD                                              # #
-# #             Pierre-Guillaume LEGUAY                                     # #
-# #             Nicolas SAREMBAUD                                           # #
+# # Author:     Nicolas SENAUD <nicolas at senaud dot fr>                   # #
 # #                                                                         # #
 # ########################################################################### #
 

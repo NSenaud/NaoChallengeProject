@@ -7,9 +7,7 @@
 * *                                                                         * *
 * * Team:       IUT de Cachan                                               * *
 * *                                                                         * *
-* * Authors:    Nicolas SENAUD                                              * *
-* *             Pierre-Guillaume LEGUAY                                     * *
-* *             Nicolas SAREMBAUD                                           * *
+* * Author:     Nicolas SENAUD <nicolas at senaud dot fr>                   * *
 * *                                                                         * *
 * ****************************************************************************/
 
