@@ -72,18 +72,18 @@ def main():
                 NCProxy.walkFromDmtxToDmtx(280, 220)
 
         except KeyboardInterrupt:
-            NCProxy.unsubscribeCamera()
+            NCProxy.unRegisterFromVideoDevice()
 
         print "unRegister from ALVideoDevice"
         NCProxy.unRegisterFromVideoDevice()
 
     except KeyboardInterrupt:
-        NCProxy.unsubscribeCamera()
+        NCProxy.unRegisterFromVideoDevice()
 
     except Exception,e:
         print "NaoChallengeGeoloc test Failed:"
         print str(e)
-        return(1)
+        return(3)
 
 if __name__ == "__main__":
   exit (main()) 
