@@ -41,12 +41,38 @@ def main():
         return(1)
 
     try:
+        print "Creating ALMotion proxy to ", IP
+        AMProxy = ALProxy("ALMotion",IP,PORT)
+
+    except Exception,e:
+        print "Error when creating ALMotion proxy:"
+        print str(e)
+        return(2)
+
+    try:
         print "Registering to ALVideoDevice"
         NCProxy.registerToVideoDevice(vision_definitions.kVGA,
                                       vision_definitions.kBGRColorSpace)
 
         print "Walk from 270 to 220"
         NCProxy.walkFromDmtxToDmtx(270, 220)
+
+        try:
+            while True:
+                print "Turn around"
+                AMProxy.moveTo(0, 0, (180*3.14/180))
+
+                print "Walk from 220 to 280"
+                NCProxy.walkFromDmtxToDmtx(220, 280)
+
+                print "Turn around"
+                AMProxy.moveTo(0, 0, (180*3.14/180))
+
+                print "Walk from 280 to 220"
+                NCProxy.walkFromDmtxToDmtx(280, 220)
+
+        except KeyboardInterrupt:
+            NCProxy.unsubscribeCamera()
 
         print "unRegister from ALVideoDevice"
         NCProxy.unRegisterFromVideoDevice()

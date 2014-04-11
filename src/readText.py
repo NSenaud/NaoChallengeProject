@@ -63,16 +63,6 @@ try:
                                                            width,
                                                            channels)
 
-        # Conversions for color (red) detection.
-        hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-        # Red detection.
-        lower_red = np.array([ 0, 135, 135])
-        upper_red = np.array([10, 255, 255])
-        red = cv2.inRange(hsv_img, lower_red, upper_red)
-        # Filter red on original.
-        img = cv2.bitwise_and(img, img, mask=red)
-
         cv2.imwrite("/tmp/imgOCR.tiff", img)
 
         subprocess.call("/home/nao/naoqi/ocr.sh")

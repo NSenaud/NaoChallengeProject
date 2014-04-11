@@ -1,2 +1,3 @@
 #! /usr/bin/env sh
-tesseract -l fra /tmp/imgOCR.tiff output 
+export TESSDATA_PREFIX=/usr/share
+tesseract -l fra /tmp/imgOCR.tiff /home/nao/naoqi/output 

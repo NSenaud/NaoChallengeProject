@@ -226,7 +226,7 @@ void NaoChallengeGeoloc::registerToVideoDevice(const int &pResolution,
     int imgHeight = 0;
     int imgNbLayers = 0;
     const int kImgDepth = 8;
-    const int kFps = 3;
+    const int kFps = 5;
 
     // Release Image Header if it has been allocated before.
     if (!ImgSrc.empty()) ImgSrc.release();
@@ -261,7 +261,8 @@ void NaoChallengeGeoloc::registerToVideoDevice(const int &pResolution,
                                                       pColorSpace,
                                                       kFps);
 
-    qiLogInfo("vision.NaoChallengeGeoloc") << "Module registered as " << fVideoClientName << std::endl;
+    qiLogInfo("vision.NaoChallengeGeoloc")
+        << "Module registered as " << fVideoClientName << std::endl;
 
     // Registration is successful, set fRegisteredToVim to true.
     fRegisteredToVideoDevice = true;
@@ -285,16 +286,12 @@ void NaoChallengeGeoloc::unRegisterFromVideoDevice()
     if (!ImgSrc.empty()) ImgSrc.release();
 
     qiLogInfo("vision.NaoChallengeGeoloc")
-        << "try to unregister "
-        << fVideoClientName
-        << " module."
-        << std::endl;
+        << "try to unregister " << fVideoClientName << " module." << std::endl;
 
     if(fCamProxy) fCamProxy->unsubscribe(fVideoClientName);
 
     qiLogInfo("vision.NaoChallengeGeoloc")
-        << "Done."
-        << std::endl;
+        << "Done." << std::endl;
 
     // UnRegistration is successful, set fRegisteredToVim to false.
     fRegisteredToVideoDevice = false;
@@ -316,8 +313,7 @@ void NaoChallengeGeoloc::sayText(const std::string &toSay)
     catch (const AL::ALError&)
     {
         qiLogError("module.NaoChallengeGeoloc") 
-            << "Could not get proxy to ALTextToSpeech"
-            << std::endl;
+            << "Could not get proxy to ALTextToSpeech" << std::endl;
     }
 }
 
@@ -332,6 +328,8 @@ void NaoChallengeGeoloc::onDatamatrixDetection(const std::string &key,
                                                const AL::ALValue &value,
                                                const AL::ALValue &message)
 {
+    // Update the global variable to signal datamatrix detection to 
+    // walkFromDmtxToDmtx() function.
     Datamatrix = value;
 }
 
@@ -339,42 +337,39 @@ void NaoChallengeGeoloc::onDatamatrixDetection(const std::string &key,
 void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                                             const int &toDatamatrix)
 {
-    bool succeed;
-    cv::vector<cv::Vec4i> lines;
-    long long timeStamp;
-    float averageX;
-    float oldAverageX = 320;
-    float averageAngle;
-    float oldAverageAngle = 0.f;
-    float consigne;
-    float oldConsigne = 0;
-    int fail = 0;
-
-    AL::ALValue articulation = "HeadYaw";
-
+    bool succeed;                   // Is a line detected?
+    cv::vector<cv::Vec4i> lines;    // Line's vectors position.
+    long long timeStamp;            // Timestamp of analysed picture.
+    float averageX;                 // Relative line's position.
+    float oldAverageX = 0;          // Relative line's position at last loop.
+    float averageAngle;             // Line's direction (in degres).
+    float oldAverageAngle = 0.f;    // Line's direction at last loop.
+    float consigne;                 // Direction (in Radians)
+    float oldConsigne = 0;          // Direction gave at last loop.
+    int fail = 0;                   // Number of loop without line detection.
     time_t now;
+    AL::ALValue articulation = "HeadYaw"; 
 
-    if(fMemoryProxy)
+    if(fMemoryProxy) // ALMemory proxy to get detected datamatrix value
     {
         fMemoryProxy->subscribeToEvent("DatamatrixDetection",
                                        "NaoChallengeGeoloc",
                                        "onDatamatrixDetection");
     }
 
-    qiLogInfo("vision.NaoChallengeGeoloc") << "Module registered as " << fVideoClientName << std::endl;
+    qiLogInfo("vision.NaoChallengeGeoloc")
+        << "Module registered as " << fVideoClientName << std::endl;
 
-    // moveProxy->callVoid("wakeUp");
     postureProxy->callVoid("goToPosture",
                            (std::string) "StandInit",
                            1.0f);
 
-    std::ostringstream toSay;
-    toSay << "Je suis prêt!" ;
-    sayText(toSay.str());
+    sayText("Je suis prêt!");
 
     qiLogInfo("NaoChallengeGeoloc")
         << "Start from " << fromDatamatrix << endl;
 
+    // Position Nao on te line depending on it position in the room.
     switch (fromDatamatrix)
     {
         case 210:   break;
@@ -407,8 +402,8 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         case 290:   break;
     }
 
-
-    while(fail < 100)
+    /* *** Main loop *** */
+    while(true)
     {
         qiLogInfo("NaoChallengeGeoloc")
             << "------------ [ NEW LOOP ITERATION ] ------------" << endl;
@@ -425,14 +420,16 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         if (DatamatrixString == toDatamatrixString.str())
         {
             sayText("Datamatrice de destination atteinte");
-
             break;
         }
 
+        // Analyse a new picture with OpenCV to find the line.
         findLine(succeed, lines, timeStamp);
 
+        // Succeed if any line is detected on the picture.
         if (succeed)
         {
+            // Find informations on line detected.
             directionFromVectors(lines, averageX, averageAngle);           
 
             /* ********************* Correction Module ********************* */
@@ -440,16 +437,14 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             // Correction of the angle, set 12 o'clock at 0.
             averageAngle -= 90;
             averageAngle = -averageAngle;
-            // Correction of the place of the line in vision, set center to 0.
+            // Set center to 0 to have relative place in vision.
             averageX -= 320;
 
+            qiLogInfo("NaoChallengeGeoloc")
+                << "Angle (before correction): " << averageAngle << endl;
 
             qiLogInfo("NaoChallengeGeoloc")
-                << "Angle (Avant correcteur): " << averageAngle << endl;
-
-            qiLogInfo("NaoChallengeGeoloc")
-                << "Position de la ligne (pixel): " << averageX << endl;
-
+                << "Line's relative position (in pixel): " << averageX << endl;
 
             if (averageX > 80)
             {
@@ -458,7 +453,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                 qiLogInfo("NaoChallengeGeoloc")
                         << "/!\\ Nao is loosing the line!" << endl;
 
-                averageAngle = -15;
+                averageAngle = -12;
             }
             else if (averageX < -80)
             {
@@ -466,24 +461,23 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                     << "Nao is on the RIGHT of the line" << endl;
                 qiLogInfo("NaoChallengeGeoloc")
                         << "/!\\ Nao is loosing the line!" << endl;
-                averageAngle = 15;
+                averageAngle = 12;
             }
             else
             {
                 qiLogInfo("NaoChallengeGeoloc")
                     << "Nao is on the line" << endl;
 
-                averageAngle = (averageAngle+oldAverageAngle)/2;
+                averageAngle = (averageAngle + oldAverageAngle)/2;
             }
 
             oldAverageX     = averageX;
             oldAverageAngle = averageAngle;
 
-            
             // Radian Conversion.
-            consigne = averageAngle*CV_PI/180;
+            consigne = averageAngle * CV_PI/180;
 
-            // Security
+            //!\ Security
             if (consigne < -2.5)
             {
                 consigne = -2.5;
@@ -502,11 +496,9 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             qiLogInfo("NaoChallengeGeoloc")
                 << "Consigne (Radian): " << consigne << endl;
 
-            AL::ALValue articulation = "HeadYaw";
-
             moveProxy->pCall("angleInterpolation",
                              articulation,
-                             (AL::ALValue) consigne, // (((float) atan((float) 80*averageX/35200))*CV_PI/180),
+                             (AL::ALValue) consigne,
                              (AL::ALValue) 0.1f,
                              (bool) true);
 
@@ -529,16 +521,6 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                              (bool) true);
         }
     }
-
-    postureProxy->callVoid("goToPosture",
-                           (std::string) "Crouch",
-                           0.5f);
-
-    sayText("Blope blop blop");
-
-    moveProxy->callVoid("setStiffnesses",
-                        (AL::ALValue) "Body",
-                        (AL::ALValue) 0.0f);
 }
 
 
@@ -548,7 +530,7 @@ void NaoChallengeGeoloc::findLine(bool &succeed,
 {
     cv::Mat dst, color_dst, hsv, whiteFilter ;
     
-    // Check that a video module has been registered.
+    // Check a video module has been registered.
     if (!fRegisteredToVideoDevice)
     {
         throw ALError(getName(),
@@ -596,10 +578,9 @@ void NaoChallengeGeoloc::findLine(bool &succeed,
                             cv::Scalar(0, 0, 255), 3, 8);
     }
 
-    // ImgSrc = color_dst;
-    // xSaveIplImage(color_dst, "/home/nao/naoqi/color_dst", "jpg", seconds);
+    ImgSrc = color_dst;
+    xSaveIplImage(color_dst, "/tmp/imgFromCam", "jpg", seconds);
 
-    // Now that you're done with the (local) image, you have to release it from the V.I.M.
     fCamProxy->releaseImage(fVideoClientName);
 
     if (!lines.empty())
@@ -639,7 +620,7 @@ void NaoChallengeGeoloc::directionFromVectors(cv::vector<cv::Vec4i> &lines,
     if (vectors.size() == 0)
     {
         qiLogInfo("NaoChallengeGeoloc")
-                << "!!!!!!!!!!!!!!!!!! [ CAUTION ] !!!!!!!!!!!!!!!!!" << endl;
+            << "!!!!!!!!!!!!!!!!!! [ CAUTION ] !!!!!!!!!!!!!!!!!" << endl;
         for (int i = 0; i < lines.size(); ++i)
         {
             y = lines[i][3]-lines[i][1];

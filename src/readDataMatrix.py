@@ -82,7 +82,7 @@ def main():
             except Exception,e:
                 DataMatrixValue = 0
             
-            if (int(DataMatrixValue) > 40 and int(DataMatrixValue) < 300):
+            if (int(DataMatrixValue) > 40 and int(DataMatrixValue) < 600):
                 print "Datamatrix value:",
                 print DataMatrixValue
 
