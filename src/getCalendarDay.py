@@ -25,8 +25,9 @@ import subprocess
 from naoqi import ALProxy
 
 
-IP="NaoCRIC.local"
-Port=9559
+IP = "NaoCRIC.local"
+Port = 9559
+weekdays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 
 
 camProxy = ALProxy("ALVideoDevice", IP, Port)
@@ -43,6 +44,45 @@ followTheLineCam = camProxy.subscribeCamera("CalendarCam",
                                             definition,
                                             colorSpace,
                                             fps)
+
+def levenshtein(a,b):
+    "Calculates the Levenshtein distance between a and b."
+    n, m = len(a), len(b)
+    if n > m:
+        # Make sure n <= m, to use O(min(n,m)) space
+        a,b = b,a
+        n,m = m,n
+        
+    current = range(n+1)
+    for i in range(1,m+1):
+        previous, current = current, [i]+[0]*n
+        for j in range(1,n+1):
+            add, delete = previous[j]+1, current[j-1]+1
+            change = previous[j-1]
+            if a[j-1] != b[i-1]:
+                change = change + 1
+            current[j] = min(add, delete, change)
+            
+    return current[n]
+
+def verification(proposition):
+    "Find the clothest weekday from proposition"
+    
+    global weekdays
+    bestDay = [None, 1000]  # [ Day, matchCoeff ]
+
+    for day in weekdays:
+        match = levenshtein(day, proposition)
+        if match == 1:
+            return day
+        elif match < bestDay[1]:
+            bestDay[0] = day
+            bestDay[1] = match
+
+    if bestDay[1] < 7:
+        return bestDay[0]
+    else:
+        return ""
 
 try:
     while True:
@@ -71,6 +111,19 @@ try:
         # Filter red on original.
         img = cv2.bitwise_and(img, img, mask=red)
 
+        retval, img = cv2.threshold(img, 0, 1000, cv2.THRESH_BINARY)
+
+        img = cv2.medianBlur(img, 5)
+
+        img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        img = cv2.Canny(img, 100, 125)
+
+        # contours = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+        # cv2.drawContours(img, contours, -1, 1000)
+
         cv2.imwrite("/tmp/imgOCR.tiff", img)
 
         subprocess.call("/home/nao/naoqi/ocr.sh")
@@ -79,12 +132,19 @@ try:
 
         file = open('/home/nao/naoqi/output.txt', 'r')
         toSay = file.readline()
-        print "Nao say:",
-        print toSay
-        try:
-            TTSProxy.say(toSay)
-        except RuntimeError, e:
-            print e
+
+        if not (toSay.isspace() or toSay == ""):
+            print "Nao sees:",
+            print toSay
+            toSay = verification(toSay)
+            print "Nao say:",
+            print toSay
+            try:
+                TTSProxy.say(toSay)
+            except RuntimeError, e:
+                print e
+        else:
+            print "Nao can't read"
 
 except KeyboardInterrupt:
         camProxy.unsubscribe("CalendarCam")
