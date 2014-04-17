@@ -208,7 +208,7 @@ void automate ()
 
   // Compteur d'envoi Bluetooth
   unsigned short cptProcess = 0; // Processing
-  unsigned short cptOK = 0;
+  unsigned char cptGLCD = 0;
 
   // Valeur de la dernière valeur de poids avant l'actionnement du servomoteur
   float poidsActuel;
@@ -275,7 +275,17 @@ void automate ()
 
   // Fini ! On recule un peu le moteur afin que rien ne tombe de plus.
   moteurPWM(vitesseIntermediaire, sensOpposeReservoir);
-  delay(1500);
+  
+  while (cptGLCD <= 5)
+  {
+    delay(300);
+    cptGLCD++;
+    if (digitalRead(BUFFER_PIN)==HIGH)
+    digitalWrite(BUFFER_PIN,LOW);
+    else 
+    digitalWrite(BUFFER_PIN,HIGH);
+  }
+  cptGLCD=0;
 
   // Allez on arrête tout et on vide le réservoir dans la gamelle. On confirme la fin.
   moteurPWM(vitesseNulle, sensArret);
@@ -284,13 +294,45 @@ void automate ()
   Serial.begin(9600);
   Serial.println(200, DEC); // Envoi de code OK
   Serial.end();
-  delay(3000);
-
+  
+  while (cptGLCD <= 10)
+  {
+    delay(300);
+    cptGLCD++;
+    if (digitalRead(BUFFER_PIN)==HIGH)
+    digitalWrite(BUFFER_PIN,LOW);
+    else 
+    digitalWrite(BUFFER_PIN,HIGH);
+  }
+  cptGLCD=0;
+  
   myservo.attach(SERVO_PIN); //attribution de SERVO_PIN au servo
   myservo.write(servoInitial);  // puis le remettre en position initiale.
-  delay(1500);
+  
+  while (cptGLCD <= 5)
+  {
+    delay(300);
+    cptGLCD++;
+    if (digitalRead(BUFFER_PIN)==HIGH)
+    digitalWrite(BUFFER_PIN,LOW);
+    else 
+    digitalWrite(BUFFER_PIN,HIGH);
+  }
+  cptGLCD=0;
+  
   myservo.detach();
-  delay(1000);
+  
+  while (cptGLCD <= 3)
+  {
+    delay(300);
+    cptGLCD++;
+    if (digitalRead(BUFFER_PIN)==HIGH)
+    digitalWrite(BUFFER_PIN,LOW);
+    else 
+    digitalWrite(BUFFER_PIN,HIGH);
+  }
+  cptGLCD=0;
+  
 }
 
 void balanceAffichageGrammes (float poidsTronque)
@@ -364,7 +406,7 @@ char decodageIR (unsigned long codeIR)
 
 void decodageBT (unsigned char rcv)
 {
-  switch (state)
+  /*switch (state)
   {
     case 0:     // Start state
       break;
@@ -380,19 +422,19 @@ void decodageBT (unsigned char rcv)
       break;
     case 50:    // Message type: Distributor Error
       break;
-    case 102:   /* Processing */
+    case 102:   // Processing 
       break;
-    case 200:   /* OK */
+    case 200:   // OK 
       break;
-    case 201:   /* Created */
+    case 201:   // Created 
       break;
-    case 202:   /* Accepted */
+    case 202:   // Accepted 
       break;
-    case 500:   /* Problem */
+    case 500:   // Problem 
       break;
-    case 507:   /* Insufficient Storage */
+    case 507:   // Insufficient Storage
       break;
-  }
+  }*/
   switch (rcv)
   {
       /* End Of Line */
@@ -507,14 +549,7 @@ void GLCDBalanceLancement (unsigned char natureOrdre)
 
     case 2 :  //BT
       GLCD.InvertRect(49, 44, 58, 12);
-      // Confirmation de la réception : Accepted
-      while (cptOK <= 10)
-      {
-        cptOK += 1;
-        Serial.print(200, DEC); // Envoi de 10 codes OK
-        delay(100);
-      }
-      cptOK = 0;
+      delay(1000);
       break;
 
     default :
@@ -544,21 +579,26 @@ void affichageGLCD (float poids, unsigned char nbDecimale)
   float pourcentPoids = 0;
   pourcentPoids = int((poids / (50.f)) * 100);
   GLCD.ClearScreen();
-  GLCD.CursorTo(4, 1);
-  GLCD.print("Pesee en cours");
-  GLCD.DrawLine(43, 8, 45, 7); // é : accent aigu
   GLCD.CursorTo(5, 1);
   GLCD.FillRect(14, 20, pourcentPoids, 22, BLACK);
   GLCD.FillRect(43, 24, 38, 14, WHITE);
-  GLCD.GotoXY(54, 28);
   if (pourcentPoids >= 100)
   {
+    GLCD.GotoXY(54,28);
     GLCD.print("Fin");
+    GLCD.CursorTo(4,1);
+    GLCD.print("Pesee terminee");
+    GLCD.DrawLine(43, 8, 45, 7); // é : accent aigu de pesée
+    GLCD.DrawLine(97, 8, 99, 7); // é : accent aigu de terminée
   }
   else
   {
+    GLCD.GotoXY(54,28);
     GLCD.print(pourcentPoids, 0);
     GLCD.print("%");
+    GLCD.CursorTo(4,1);
+    GLCD.print("Pesee en cours");
+    GLCD.DrawLine(43, 8, 45, 7); // é : accent aigu
   }
   GLCD.CursorTo(8, 6);
   GLCD.SelectFont(Arial_bold_14);
@@ -595,7 +635,6 @@ void glcdNAOintro()
   GLCD.print("IUT de");
   GLCD.CursorTo(1, 7);
   GLCD.print("Cachan");
-  delay(2000);
 }
 
 void lcdVeille()
