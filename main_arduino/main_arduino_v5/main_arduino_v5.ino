@@ -2,9 +2,9 @@
 // Description de la version 2 : Révision des broches, interruptions, liaison BlueTooth.
 // Description de la version 3 : Test complet de la balance, changement de la library HX711.
 // Description de la version 4 : Implantation du GLCD et du DRV8835. Ajustement du LCD et du HX711. Affichages GLCD.
-// Description de la version 5 : Amélioration du sans-fil avec interruption. Mode veille et buffer. 
+// Description de la version 5 : Amélioration du sans-fil avec interruption. Mode veille et buffer. Bluetooth opérationnel.
 
-// Bibliothèques
+// Bibliothèques, images et polices
 #include <IRremote.h>
 #include <LiquidCrystal.h>
 #include "HX711.h"
@@ -17,12 +17,12 @@
 
 // Définition des broches :
 // du LCD
-const char RS = 22;
-const char Enable = 24;
-const char D4 = 26;
-const char D5 = 28;
-const char D6 = 30;
-const char D7 = 32;
+#define RS 22
+#define Enable 24
+#define D4 26
+#define D5 28
+#define D6 30
+#define D7 32
 
 // du GLCD. /!\ Celles-ci sont fixées dans arduino-1.5.6-r2\libraries\glcd\config\ks0108_Mega.h :
 /*
@@ -41,38 +41,38 @@ const char D7 = 32;
 #define glcdData7Pin    29
 */
 // du buffer chargé du rétroéclairage du GLCD
-const char BUFFER_PIN = 7;
+#define BUFFER_PIN 52
 
 // de réception IR
-const char RECV_PIN = 8;
+#define RECV_PIN 8
 // la broche d'émission IR est la PWM 9 (sur le MEGA) (impossible à modifier)
 // du module bluetooth : utilisation de UART RX/TX (pin0 et pin1)
 
 // du HX711
-const int Dout = A1;
-const int Sck = A0;
+#define Dout A1
+#define Sck A0
 
 // du servomoteur
-const char SERVO_PIN = 5;
+#define SERVO_PIN 5
 
 // de la commande des moteurs
-const char MOT_PWM0_PIN = 4;
-const char MOT_PWM1_PIN = 6;
+#define MOT_PWM0_PIN 4
+#define MOT_PWM1_PIN 6
 
 // du bouton poussoir
-const char BUTTON_PIN = 19;
+#define BUTTON_PIN 19
 
 // des capteurs de barrière infrarouge
-const int BARIR_PIN = A2;
+#define BARIR_PIN A2
 
 // des capteurs de fin de course
-const char FIN0_PIN = 2;
-const char FIN1_PIN = 3;
+#define FIN0_PIN 2
+#define FIN1_PIN 3
 
 // Définition des variables globales volatiles nécessaires aux interruptions
-volatile int BUTTON_ETAT = LOW;
-volatile int FIN0_ETAT = LOW;
-volatile int FIN1_ETAT = LOW;
+volatile boolean BUTTON_ETAT = LOW;
+volatile boolean FIN0_ETAT = LOW;
+volatile boolean FIN1_ETAT = LOW;
 
 // Variable de mise en veille
 char sleepStatus = 0;
@@ -82,9 +82,9 @@ unsigned short count = 0;
 short state = 0 ;
 
 // Constantes de détection de lancement
-const unsigned char BUTTON_DETECTED = 0;
-const unsigned char IR_DETECTED = 1;
-const unsigned char BT_DETECTED = 2;
+#define BUTTON_DETECTED 0
+#define IR_DETECTED 1
+#define BT_DETECTED 2
 
 // Déclaration des objets nécessaires
 LiquidCrystal lcd(RS, Enable, D4, D5, D6, D7); //LCD
@@ -99,11 +99,10 @@ void setup()
   balanceCalibrageInit();
   lcd.begin(16, 2); //initialisation d'un lcd 16 colonnes, 2 lignes.
   initLCD(); //initialisation du LCD
+  //glcdNAOintro();  // initialisation du GLCD
   irrecv.enableIRIn(); //activation du récepteur IR
   myservo.attach(SERVO_PIN); //attribution de SERVO_PIN au servo
   myservo.write(0); // position initiale.
-  delay(1000); // nécessaire pour réinitialiser la position du servo
-  myservo.detach(); // stiffness removed
   pinMode(MOT_PWM0_PIN, OUTPUT); // PWM du moteur 0 en sortie
   pinMode(MOT_PWM1_PIN, OUTPUT); // PWM du moteur 1 en sortie
   pinMode(BARIR_PIN, INPUT); // Barrière infrarouge en entrée sur A2
@@ -112,8 +111,9 @@ void setup()
   attachInterrupt(0, interruptFIN0, RISING); //attribution du FIN0 en interruption
   attachInterrupt(1, interruptFIN1, RISING); //attribution du FIN1 en interruption
   attachInterrupt(4, interruptBUTTON, RISING); //attribution du BUTTON en interruption
-  //glcdNAOintro();  // initialisation du GLCD
   Serial.begin(9600);
+  delay(1000); // nécessaire pour réinitialiser la position du servo
+  myservo.detach(); // stiffness removed
 }
 
 void loop()
@@ -145,29 +145,26 @@ void loop()
       initLCD();
     }
   }
-    if (count >= 60)
+    if (count >= 600)  // 600*50ms = 3000ms = 30s avant mise en veille.
     {
-      count = 0;
+      digitalWrite(BUFFER_PIN, LOW);
       lcdVeille();
       //GLCDVeille();
       delay(100);
+      count = 0;
       sleepNow();
       digitalWrite(BUFFER_PIN, HIGH);
-      
-      delay(1000);
-      initLCD();
     }
 }
-void serialEvent() {
+void serialEvent() 
+{
   unsigned char rcv;
   if (Serial.available() > 0)  //enclenchement par Bluetooth
   {
     rcv = Serial.read();
-    Serial.print("RCV : ");
-    Serial.println(rcv);
+    Serial.println(rcv);  // J'ai reçu "rcv" : est-ce correct, jeune Nao ?
     decodageBT(rcv);
-    Serial.print("State : ");
-    Serial.println(state);
+    Serial.println(state);  // J'en déduit que je suis dans "state", est-ce bon jeune Nao ?
     if (state == 201)  //vérification de la valeur BT : correcte ou non ?
     {
       Serial.end();
@@ -243,7 +240,9 @@ void automate ()
     if (cptProcess >= 100)
     {
       cptProcess = 0;
+      Serial.begin(9600);
       Serial.println(102, DEC); // Processing
+      Serial.end();
     }
   }
   cptProcess = 0;
@@ -264,38 +263,34 @@ void automate ()
     if (cptProcess >= 100)
     {
       cptProcess = 0;
+      Serial.begin(9600);
       Serial.println(102, DEC); // Processing
+      Serial.end();
     }
   }
   poidsFinal = abs(scale.get_units());
   scale.power_down();
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Resultat :");
-  lcd.setCursor(0, 1);
-  lcd.print(poidsFinal, 1);
-  lcd.print("g");
+  lcdResultat(poidsFinal); // Affichage du résultat sur LCD
+  //affichageGLCD(poidsFinal, 1); // pas besoin de fonction spécial résultat sur GLCD.
 
-  // Fini ! On recule un peu le moteur afin que rien ne tombe de plus, on éteint la balance.
+  // Fini ! On recule un peu le moteur afin que rien ne tombe de plus.
   moteurPWM(vitesseIntermediaire, sensOpposeReservoir);
-  delay(3000);
+  delay(1500);
 
-  // Allez on arrête tout et on vide le réservoir dans la gamelle.
+  // Allez on arrête tout et on vide le réservoir dans la gamelle. On confirme la fin.
   moteurPWM(vitesseNulle, sensArret);
   myservo.attach(SERVO_PIN); //attribution de SERVO_PIN au servo
-  myservo.write(servoFinal);  // alors faire tourner le servomoteur à fond
-  myservo.detach();
-
+  myservo.write(servoFinal);  // alors faire tourner le servomoteur à fond 
+  Serial.begin(9600);
   Serial.println(200, DEC); // Envoi de code OK
-  delay(2000);
+  Serial.end();
+  delay(3000);
 
   myservo.attach(SERVO_PIN); //attribution de SERVO_PIN au servo
   myservo.write(servoInitial);  // puis le remettre en position initiale.
-  delay(1000);
+  delay(1500);
   myservo.detach();
-  //FIN0_ETAT = LOW;
   delay(1000);
-  initLCD ();
 }
 
 void balanceAffichageGrammes (float poidsTronque)
@@ -304,11 +299,12 @@ void balanceAffichageGrammes (float poidsTronque)
   if (poidsTronque > 0.2) // résout les problèmes de poids négatifs et les poussières parasites
   {
     affichageLCD(poidsTronque, nbDecimale); // utilisation du LCD
+    //affichageGLCD(poids,nbDecimale);  // utilisation du GLCD
   }
   else {
     affichageLCD(0, nbDecimale); // utilisation du LCD
+    //affichageGLCD(poids,nbDecimale);  // utilisation du GLCD
   }
-  //affichageGLCD(poids,nbDecimale);  // utilisation du GLCD
 }
 
 void moteurPWM (unsigned char valPWM, unsigned char sens)
@@ -571,10 +567,21 @@ void affichageGLCD (float poids, unsigned char nbDecimale)
   GLCD.SelectFont(System5x7);
 }
 
+void lcdResultat(float poidsFinal)
+{  
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Resultat :");
+  lcd.setCursor(0, 1);
+  lcd.print(poidsFinal, 1);
+  lcd.print("g");
+}
+
 void balanceCalibrageInit()
 {
   scale.set_scale(1965.f); // valeur empirique de calibrage
   scale.tare();
+  scale.power_down();
 }
 
 void glcdNAOintro()
@@ -600,7 +607,6 @@ void lcdVeille()
 
 void GLCDveille()
 {
-  digitalWrite(BUFFER_PIN, LOW);
   GLCD.ClearScreen();
   GLCD.DrawBitmap(NaoVeille, 42, 23, BLACK);
   GLCD.SelectFont(Arial_bold_14);
@@ -622,6 +628,9 @@ void sleepNow()
   power_timer0_disable();
   power_timer1_disable();
   power_timer2_disable();
+  power_timer3_disable();
+  power_timer4_disable();
+  power_timer5_disable();
   power_twi_disable();
   sleep_mode();
   sleep_disable();
