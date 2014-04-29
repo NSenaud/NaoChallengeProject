@@ -24,10 +24,10 @@ import subprocess
 # Nao's libraries.
 from naoqi import ALProxy
 
-
 IP = "NaoCRIC.local"
 Port = 9559
 weekdays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+oldAverage = None
 
 
 camProxy = ALProxy("ALVideoDevice", IP, Port)
@@ -84,6 +84,48 @@ def verification(proposition):
     else:
         return ""
 
+def rotate(img, angle):
+    center = (640, 480)
+
+    r = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+    dst = cv2.warpAffine(img, r, (1280, 960))
+
+    return dst
+
+def getDirection(vectors):
+    global oldAverage
+    directions = []
+
+    # Get vectors coordinates instead of points coordinates.
+    for x1,y1,x2,y2 in vectors[0]:
+        y = y2-y1
+        x = x2-x1
+
+        angle = np.arctan2(y, x)*360/(2*np.pi)
+
+        if angle > 50:
+            angle -= 90
+        elif angle < -50:
+            angle += 90 
+
+        if (angle < 20 or angle > -20):
+            directions.append(angle)
+
+    # Average computation.
+    angleSum = 0
+    average = 0
+    for angle in xrange(0,len(directions)):
+        angleSum += directions[angle]
+        average = angleSum/len(directions)
+
+    if average == 0:
+        average = oldAverage
+    else:
+        oldAverage = average
+
+    return average
+
 try:
     while True:
         # Get the image.
@@ -109,22 +151,23 @@ try:
         upper_red = np.array([10, 255, 255])
         red = cv2.inRange(hsv_img, lower_red, upper_red)
         # Filter red on original.
-        img = cv2.bitwise_and(img, img, mask=red)
+        newImg = cv2.bitwise_and(img, img, mask=red)
 
-        retval, img = cv2.threshold(img, 0, 1000, cv2.THRESH_BINARY)
+        retval, newImg = cv2.threshold(newImg, 0, 1000, cv2.THRESH_BINARY)
 
-        img = cv2.medianBlur(img, 5)
+        houghImg = cv2.cvtColor(newImg, cv2.COLOR_BGR2GRAY)
+        houghImg = cv2.Canny(houghImg, 50, 150, apertureSize = 3)
+        lines = cv2.HoughLinesP(houghImg, 1, np.pi/180, 10, minLineLength=30, maxLineGap=5)
 
-        img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        try:
+            if lines.any():
+                angle = getDirection(lines)
 
-        img = cv2.Canny(img, 100, 125)
+                newImg = rotate(newImg, angle)
+        except AttributeError:
+            print "No line detected"
 
-        # contours = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-
-        # cv2.drawContours(img, contours, -1, 1000)
-
-        cv2.imwrite("/tmp/imgOCR.tiff", img)
+        cv2.imwrite("/tmp/imgOCR.tiff", newImg)
 
         subprocess.call("/home/nao/naoqi/ocr.sh")
 

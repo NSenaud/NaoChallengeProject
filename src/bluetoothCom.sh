@@ -15,7 +15,11 @@
 
 rfcomm connect hci0 20:13:11:12:05:89 &
 
-sleep 5
+while [ ! -c /dev/rfcomm0 ]
+do
+	sleep 1
+	echo "Trying to connect..."
+done
 
 if ! ps -A | grep -w rfcomm 
 then
@@ -23,24 +27,28 @@ then
 	exit
 fi
 
+cat /dev/rfcomm0 > /tmp/bluetooth.txt &
+
+sleep 1
+
 echo 201 > /dev/rfcomm0
 
 echo "Initializing connexion"
 
-sleep 1
-
-while ! awk '/./{line=$0} END{print line}' file.txt | grep 202
+while ! tail -2 /tmp/bluetooth.txt | grep 202
 do
 	echo 201 > /dev/rfcomm0
 	echo "Retry..."
-	sleep 1
 done
 
 echo "Connexion initialized"
 
-while ! awk '/./{line=$0} END{print line}' file.txt | grep 200
+while ! tail -2 /tmp/bluetooth.txt | grep 200
 do
 	echo "Waiting..."
+	sleep 1
 done
 
-echo "Done"
+killall rfcomm
+
+echo "Finished!"
