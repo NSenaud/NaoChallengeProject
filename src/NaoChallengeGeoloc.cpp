@@ -24,13 +24,13 @@
 #include <time.h>
 #include <unistd.h>
 #include <vector>
-/* Boost headers */
+/* Boost's headers */
 #include <boost/shared_ptr.hpp>
-/* OpenCV headers */
+/* OpenCV's headers */
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-/* Aldebaran headers */
+/* Aldebaran's headers */
 #include <alcommon/albroker.h>
 #include <alcommon/almodule.h>
 #include <alcommon/alproxy.h>
@@ -43,12 +43,14 @@
 // #include <consoleloghandler.hpp>
 #include <qi/log.hpp>
 #include <qi/os.hpp>
+/* Lua's headers */
+#include <lua.hpp>
+#include <lualib.h>
+#include <lauxlib.h>
 
 
 /* Minimum size of the line no Nao's camera 1 */
 #define MINLINELENGTH 15
-
-#define _USE_MATH_DEFINES
 
 
 using namespace std;
@@ -334,6 +336,7 @@ void NaoChallengeGeoloc::onDatamatrixDetection(const std::string &key,
 }
 
 
+// Main function
 void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                                             const int &toDatamatrix)
 {
@@ -363,42 +366,61 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     qiLogInfo("NaoChallengeGeoloc")
         << "Start from " << fromDatamatrix << endl;
 
-    // Position Nao on te line depending on it position in the room.
-    switch (fromDatamatrix)
+    /* Getting first movments from a lua config file */
+    const char* configFile = "config.lua";
+    const char* configFunc = "getConfigFromDmtx";
+
+    lua_State* L = luaL_newstate();
+    double startAngle = 0;
+    double startXDist = 0;
+    double startYDist = 0;
+    luaL_openlibs(L);
+
+    if (luaL_dofile(L, configFile) != 0) // Load file.
     {
-        case 210:   break;
+        printf("Error while loading file %s : %s\n",
+               configFile,
+               lua_tostring(L, -1));
+    }
+    else
+    {
+        lua_getglobal(L, configFunc); // Function to call.
+        lua_pushnumber(L, fromDatamatrix); // Argument.
+        
+        if (lua_pcall(L, 1, 3, 0) != 0) // Run function with 1 arg & 1 return.
+        {
+            printf("Error while running function %s : %s\n",
+                   configFunc,
+                   lua_tostring(L, -1));
+        }
+        else
+        {
+            startAngle = lua_tonumber(L, -3);
+            startXDist = lua_tonumber(L, -2);
+            startYDist = lua_tonumber(L, -1);
+            lua_pop(L, 3); // clear the stack.
+        }
 
-        case 220:   break;
+        printf("Result:%lf\n", startAngle);
+    }
 
-        case 230:   break;
+    lua_close(L);
 
-        case 240:   break;
-
-        case 250:   break;
-
-        case 260:   break;
-
-        case 270:   postureProxy->callVoid("goToPosture",
+    // Position Nao on te line depending on it position in the room.
+    postureProxy->callVoid("goToPosture",
                            (std::string) "StandInit",
                            1.0f);
 
-                    consigne = -45*CV_PI/180;    // 45 degres in radians.
-                    moveProxy->pCall("moveTo",
-                                     (float)  0.3f,
-                                     (float) -0.3f,
-                                     (float) consigne);
+    consigne = startAngle * CV_PI/180;    // 45 degres in radians.
+    moveProxy->pCall("moveTo",
+                     (float) startXDist,
+                     (float) startYDist,
+                     (float) consigne);
 
-                    qiLogInfo("NaoChallengeGeoloc")
-                        << "Angle (Radian): " << consigne << endl;
+    qiLogInfo("NaoChallengeGeoloc")
+        << "Angle (Radian): " << consigne << endl;
 
-                    usleep(1000*4000);
-                    
-                    break;
-
-        case 280:   break;
-
-        case 290:   break;
-    }
+    usleep(1000*4000);
 
     /* *** Main loop *** */
     while(true)

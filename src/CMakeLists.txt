@@ -34,7 +34,7 @@ qi_create_lib(NaoChallengeGeoloc SHARED ${_srcs} SUBFOLDER naoqi)
 # Tell CMake that myproject depends on ALCOMMON.
 # This will set the libraries to link myproject with,
 # the include paths, and so on
-qi_use_lib(NaoChallengeGeoloc ALCOMMON ALVISION BOOST OPENCV2_CORE OPENCV2_HIGHGUI OPENCV2_IMGPROC)
+qi_use_lib(NaoChallengeGeoloc ALCOMMON ALVISION BOOST OPENCV2_CORE OPENCV2_HIGHGUI OPENCV2_IMGPROC LUA)
 
 
 
