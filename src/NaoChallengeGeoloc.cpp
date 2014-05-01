@@ -378,9 +378,9 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
 
     if (luaL_dofile(L, configFile) != 0) // Load file.
     {
-        printf("Error while loading file %s : %s\n",
-               configFile,
-               lua_tostring(L, -1));
+        qiLogInfo("Error while loading lua config file")
+            << configFile
+            << lua_tostring(L, -1) << std::endl;
     }
     else
     {
@@ -389,9 +389,10 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         
         if (lua_pcall(L, 1, 3, 0) != 0) // Run function with 1 arg & 1 return.
         {
-            printf("Error while running function %s : %s\n",
-                   configFunc,
-                   lua_tostring(L, -1));
+            // const char* luaError = lua_tostring(L, -1));
+            qiLogInfo("Error while running function in lua config file")
+                << configFunc
+                << lua_tostring(L, -1) << std::endl;
         }
         else
         {
@@ -401,7 +402,6 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             lua_pop(L, 3); // clear the stack.
         }
 
-        printf("Result:%lf\n", startAngle);
     }
 
     lua_close(L);
@@ -498,25 +498,12 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             // Radian Conversion.
             consigne = averageAngle * CV_PI/180;
 
-            //!\ Security
-            if (consigne < -2.5)
-            {
-                consigne = -2.5;
-            }
-            else if (consigne > 2.5)
-            {
-                consigne = 2.5;
-            }
-            else if (!(consigne > -2.5 && consigne < 2.5))
-            {
-                consigne = -oldConsigne;
-            }
-
             qiLogInfo("NaoChallengeGeoloc")
                 << "Consigne (Degres): " << averageAngle << endl;
             qiLogInfo("NaoChallengeGeoloc")
                 << "Consigne (Radian): " << consigne << endl;
 
+            // Rotate head.
             moveProxy->pCall("angleInterpolation",
                              articulation,
                              (AL::ALValue) consigne,
@@ -540,6 +527,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         else
         {
             ++fail;
+            // Turns head (probably) back to the line.
             moveProxy->pCall("angleInterpolation",
                              articulation,
                              (AL::ALValue) -consigne,
