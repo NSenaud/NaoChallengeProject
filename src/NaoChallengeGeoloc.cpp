@@ -366,14 +366,26 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     qiLogInfo("NaoChallengeGeoloc")
         << "Start from " << fromDatamatrix << endl;
 
+    qiLogInfo("NaoChallengeGeoloc")
+        << "<-- Loading Configuration -->" << endl;
+
     /* Getting first movments from a lua config file */
-    const char* configFile = "config.lua";
+    const char* configFile = "/home/nao/naoqi/config.lua";
     const char* configFunc = "getConfigFromDmtx";
+    const char* correctionConfigFunc = "getConfigForCorrectionModule";
 
     lua_State* L = luaL_newstate();
-    double startAngle = 0;
-    double startXDist = 0;
-    double startYDist = 0;
+
+    // Get start config depending on starting Datamatrix.
+    float startAngle = 0;
+    float startXDist = 0;
+    float startYDist = 0;
+    // Get correction module configuration.
+    int   lineHysteresisLevel     = 0;
+    float angleIfBeyondHysteresis = 0;
+    float footstep                = 0;
+    int   waitBetweenSteps        = 0;
+
     luaL_openlibs(L);
 
     if (luaL_dofile(L, configFile) != 0) // Load file.
@@ -384,9 +396,9 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     }
     else
     {
+        // Get start config depending on starting Datamatrix.
         lua_getglobal(L, configFunc); // Function to call.
         lua_pushnumber(L, fromDatamatrix); // Argument.
-        
         if (lua_pcall(L, 1, 3, 0) != 0) // Run function with 1 arg & 1 return.
         {
             // const char* luaError = lua_tostring(L, -1));
@@ -396,10 +408,28 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         }
         else
         {
-            startAngle = lua_tonumber(L, -3);
-            startXDist = lua_tonumber(L, -2);
-            startYDist = lua_tonumber(L, -1);
+            startAngle = (float) lua_tonumber(L, -3);
+            startXDist = (float) lua_tonumber(L, -2);
+            startYDist = (float) lua_tonumber(L, -1);
             lua_pop(L, 3); // clear the stack.
+        }
+
+        // Get correction module configuration.
+        lua_getglobal(L, correctionConfigFunc); // Function to call.
+        if (lua_pcall(L, 0, 4, 0) != 0) // Run function with 1 arg & 1 return.
+        {
+            // const char* luaError = lua_tostring(L, -1));
+            qiLogInfo("Error while running function in lua config file")
+                << configFunc
+                << lua_tostring(L, -1) << std::endl;
+        }
+        else
+        {
+            lineHysteresisLevel     = (int)   lua_tonumber(L, -4);
+            angleIfBeyondHysteresis = (float) lua_tonumber(L, -3);
+            footstep                = (float) lua_tonumber(L, -2);
+            waitBetweenSteps        = (int)   lua_tonumber(L, -1);
+            lua_pop(L, 4); // clear the stack.
         }
 
     }
@@ -467,22 +497,22 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             qiLogInfo("NaoChallengeGeoloc")
                 << "Line's relative position (in pixel): " << averageX << endl;
 
-            if (averageX > 80)
+            if (averageX > lineHysteresisLevel)
             {
                 qiLogInfo("NaoChallengeGeoloc")
                     << "Nao is on the LEFT of the line" << endl;
                 qiLogInfo("NaoChallengeGeoloc")
                         << "/!\\ Nao is loosing the line!" << endl;
 
-                averageAngle = -12;
+                averageAngle = -angleIfBeyondHysteresis;
             }
-            else if (averageX < -80)
+            else if (averageX < -lineHysteresisLevel)
             {
                 qiLogInfo("NaoChallengeGeoloc")
                     << "Nao is on the RIGHT of the line" << endl;
                 qiLogInfo("NaoChallengeGeoloc")
                         << "/!\\ Nao is loosing the line!" << endl;
-                averageAngle = 12;
+                averageAngle = angleIfBeyondHysteresis;
             }
             else
             {
@@ -498,6 +528,20 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             // Radian Conversion.
             consigne = averageAngle * CV_PI/180;
 
+            //!\ Security
+            if (consigne < -2.5)
+            {
+                consigne = -2.5;
+            }
+            else if (consigne > 2.5)
+            {
+                consigne = 2.5;
+            }
+            else if (!(consigne > -2.5 && consigne < 2.5))
+            {
+                consigne = -oldConsigne;
+            }
+
             qiLogInfo("NaoChallengeGeoloc")
                 << "Consigne (Degres): " << averageAngle << endl;
             qiLogInfo("NaoChallengeGeoloc")
@@ -511,7 +555,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                              (bool) true);
 
             moveProxy->pCall("moveTo",
-                             (float) 0.05f,
+                             (float) footstep,
                              (float) 0.0f,
                              (float) consigne);
 
@@ -522,7 +566,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
 
             oldConsigne = consigne;
 
-            usleep(1000*500);   // 500 ms.
+            usleep(1000 * waitBetweenSteps);   // 1000 * ms.
         }
         else
         {
