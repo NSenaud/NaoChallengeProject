@@ -22,6 +22,9 @@ from naoqi import ALProxy
 import vision_definitions
 import time
 
+fromDmtx = 270
+toDmtx = 210
+
 
 IP="NaoCRIC.local"
 PORT=9559
@@ -52,25 +55,25 @@ def main():
         NCProxy.registerToVideoDevice(vision_definitions.kVGA,
                                       vision_definitions.kBGRColorSpace)
 
-        print "Walk from 270 to 220"
-        NCProxy.walkFromDmtxToDmtx(270, 220)
+        # print "Walk from" + str(fromDmtx) + "to" + str(toDmtx)
+        NCProxy.walkFromDmtxToDmtx(int(fromDmtx), int(toDmtx))
 
-        try:
-            while True:
-                print "Turn around"
-                AMProxy.moveTo(0, 0, (180*3.14/180))
+        # try:
+        #     while True:
+        #         print "Turn around"
+        #         AMProxy.moveTo(0, 0, (180*3.14/180))
 
-                print "Walk from 220 to 280"
-                NCProxy.walkFromDmtxToDmtx(220, 280)
+        #         print "Walk from 220 to 280"
+        #         NCProxy.walkFromDmtxToDmtx(220, 280)
 
-                print "Turn around"
-                AMProxy.moveTo(0, 0, (180*3.14/180))
+        #         print "Turn around"
+        #         AMProxy.moveTo(0, 0, (180*3.14/180))
 
-                print "Walk from 280 to 220"
-                NCProxy.walkFromDmtxToDmtx(280, 220)
+        #         print "Walk from 280 to 220"
+        #         NCProxy.walkFromDmtxToDmtx(280, 220)
 
-        except KeyboardInterrupt:
-            NCProxy.unRegisterFromVideoDevice()
+        # except KeyboardInterrupt:
+        #     NCProxy.unRegisterFromVideoDevice()
 
         print "unRegister from ALVideoDevice"
         NCProxy.unRegisterFromVideoDevice()
@@ -81,6 +84,8 @@ def main():
     except Exception,e:
         print "NaoChallengeGeoloc test Failed:"
         print str(e)
+        print "unRegister from ALVideoDevice"
+        NCProxy.unRegisterFromVideoDevice()
         return(3)
 
 if __name__ == "__main__":

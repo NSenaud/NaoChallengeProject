@@ -28,6 +28,30 @@ function getConfigFromDmtx( fromDmtx )
 end
 
 
+function distanceDependingOnDmtx( toDmtx )
+    local dst = 0 -- 0 for infinite, else distance in meters
+    local angle = 0 -- degres
+    local xDist = 0 -- meters
+    local yDist = 0 -- meters
+
+    if toDmtx == 240 then -- Nao Gato
+        dst = 2.0
+        angle = -90
+        xDist = 0
+        yDist = 0.3
+    end
+
+    if toDmtx == 210 then -- Nao Maestro
+        dst = 2.0
+        angle = 75
+        xDist = 0
+        yDist = 0
+    end
+
+    return dst, angle, xDist, yDist
+end
+
+
 function getConfigForCorrectionModule()
     local lineHysteresisLevel = 80 -- pixels
     local angleIfBeyondHysteresis = 12 -- degres

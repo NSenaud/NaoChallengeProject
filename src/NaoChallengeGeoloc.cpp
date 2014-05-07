@@ -350,6 +350,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     float consigne;                 // Direction (in Radians)
     float oldConsigne = 0;          // Direction gave at last loop.
     int fail = 0;                   // Number of loop without line detection.
+    float distance = 0.0;           // Distance walked.
     time_t now;
     AL::ALValue articulation = "HeadYaw"; 
 
@@ -372,6 +373,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     /* Getting first movments from a lua config file */
     const char* configFile = "/home/nao/naoqi/config.lua";
     const char* configFunc = "getConfigFromDmtx";
+    const char* endConfigFunc = "distanceDependingOnDmtx";
     const char* correctionConfigFunc = "getConfigForCorrectionModule";
 
     lua_State* L = luaL_newstate();
@@ -380,6 +382,11 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     float startAngle = 0;
     float startXDist = 0;
     float startYDist = 0;
+    // Get param depending on destination.
+    float distanceMax = 0;
+    float endAngle = 0;
+    float endXDist = 0;
+    float endYDist = 0;
     // Get correction module configuration.
     int   lineHysteresisLevel     = 0;
     float angleIfBeyondHysteresis = 0;
@@ -414,6 +421,25 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             lua_pop(L, 3); // clear the stack.
         }
 
+        // Get param depending on destination.
+        lua_getglobal(L, endConfigFunc); // Function to call.
+        lua_pushnumber(L, toDatamatrix); // Argument.
+        if (lua_pcall(L, 1, 4, 0) != 0) // Run function with 1 arg & 1 return.
+        {
+            // const char* luaError = lua_tostring(L, -1));
+            qiLogInfo("Error while running function in lua config file")
+                << endConfigFunc
+                << lua_tostring(L, -1) << std::endl;
+        }
+        else
+        {
+            distanceMax = (float) lua_tonumber(L, -4);
+            endAngle = (float) lua_tonumber(L, -3);
+            endXDist = (float) lua_tonumber(L, -2);
+            endYDist = (float) lua_tonumber(L, -1);
+            lua_pop(L, 4); // clear the stack.
+        }
+
         // Get correction module configuration.
         lua_getglobal(L, correctionConfigFunc); // Function to call.
         if (lua_pcall(L, 0, 4, 0) != 0) // Run function with 1 arg & 1 return.
@@ -441,7 +467,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                            (std::string) "StandInit",
                            1.0f);
 
-    consigne = startAngle * CV_PI/180;    // 45 degres in radians.
+    consigne = startAngle * CV_PI/180;    // Conversion in radians.
     moveProxy->pCall("moveTo",
                      (float) startXDist,
                      (float) startYDist,
@@ -463,6 +489,11 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             << "\nDatamatrix = " << (std::string) Datamatrix
             << endl;
 
+        qiLogInfo("NaoChallengeGeoloc")
+            << "Distance = " << distance
+            << "\nDistance max = " << distanceMax
+            << endl;
+
         // Reach Datamatrix !
         std::string DatamatrixString = (std::string) Datamatrix ;
         ostringstream toDatamatrixString;
@@ -471,6 +502,16 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         {
             ledsProxy->pCall("rasta",
                              (float) 8.0f);
+            break;
+        }
+        // Reach destination
+        if (distanceMax < distance)
+        {
+            consigne = endAngle * CV_PI/180;
+            moveProxy->pCall("moveTo",
+                             (float) endXDist,
+                             (float) endYDist,
+                             (float) consigne);
             break;
         }
 
@@ -563,6 +604,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                              (int)   averageAngle,
                              (float) 0.5f,
                              (bool)  false);
+            distance += footstep;
 
             oldConsigne = consigne;
 
