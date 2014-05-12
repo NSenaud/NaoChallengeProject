@@ -24,6 +24,12 @@ function getConfigFromDmtx( fromDmtx )
         yDist = -0.3
     end
 
+    if fromDmtx == 220 then
+        angle = 180
+        xDist = 0.3
+        yDist = 0
+    end
+
     return angle, xDist, yDist
 end
 
@@ -42,10 +48,20 @@ function distanceDependingOnDmtx( toDmtx )
     end
 
     if toDmtx == 210 then -- Nao Maestro
-        dst = 2.0
+        dst = 1.7
         angle = 75
         xDist = 0
-        yDist = 0
+        yDist = -0.2
+    end
+
+    if toDmtx == 220 then -- Nao Memento
+        dst = 2.0
+    end
+
+    if toDmtx == 290 then -- Nao Memento
+        dst = 1.2
+        angle = -70
+        yDist = 0.15
     end
 
     return dst, angle, xDist, yDist

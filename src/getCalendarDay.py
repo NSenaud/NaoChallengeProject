@@ -13,13 +13,16 @@
 # # Author:     Nicolas SENAUD <nicolas at senaud dot fr>                   # #
 # #                                                                         # #
 # ########################################################################### #
+"""
+    get Calendar weekday in Masetro trial of Nao Challenge 2014.
+"""
 
 import sys
 import time
 import numpy as np                  # Numpy:  Maths library.
 import cv2                          # OpenCV: Visual recognition library.
 import vision_definitions           # Image definitions macros.
-import subprocess
+import subprocess                   # Used to call bash scripts.
 
 # Nao's libraries.
 from naoqi import ALProxy
@@ -27,24 +30,26 @@ from naoqi import ALProxy
 IP = "NaoCRIC.local"
 Port = 9559
 weekdays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-oldAverage = None
+oldAngle = 0 # Global to keep in mind
 
 
 camProxy = ALProxy("ALVideoDevice", IP, Port)
 TTSProxy = ALProxy("ALTextToSpeech", IP, Port)
 
 # Register a video module.
-colorSpace = vision_definitions.kBGRColorSpace
-definition = vision_definitions.k4VGA
-fps = 5
+colorSpace = vision_definitions.kBGRColorSpace    # OpenCV sadly does not support YUV.
+definition = vision_definitions.k4VGA             # Resolution Max.
+fps = 3         # We can't really expect more than 2 treatment per second.
 camera = 0      # 1 = mouth camera / 0 = front camera.
 
-followTheLineCam = camProxy.subscribeCamera("CalendarCam",
+readCalendarCam = camProxy.subscribeCamera("CalendarCam",
                                             camera,
                                             definition,
                                             colorSpace,
                                             fps)
 
+
+# Thanks to http://hetland.org/coding/python/levenshtein.py
 def levenshtein(a,b):
     "Calculates the Levenshtein distance between a and b."
     n, m = len(a), len(b)
@@ -52,7 +57,7 @@ def levenshtein(a,b):
         # Make sure n <= m, to use O(min(n,m)) space
         a,b = b,a
         n,m = m,n
-        
+
     current = range(n+1)
     for i in range(1,m+1):
         previous, current = current, [i]+[0]*n
@@ -62,12 +67,13 @@ def levenshtein(a,b):
             if a[j-1] != b[i-1]:
                 change = change + 1
             current[j] = min(add, delete, change)
-            
+
     return current[n]
 
+
 def verification(proposition):
-    "Find the clothest weekday from proposition"
-    
+    "Find the clothest weekday from proposition or return False"
+
     global weekdays
     bestDay = [None, 1000]  # [ Day, matchCoeff ]
 
@@ -79,22 +85,34 @@ def verification(proposition):
             bestDay[0] = day
             bestDay[1] = match
 
-    if bestDay[1] < 7:
+    if bestDay[1] < 7 and len(bestDay[0]) > 5:
+        return bestDay[0]
+    elif bestDay[1] < 5:
         return bestDay[0]
     else:
-        return ""
+        return False
+
 
 def rotate(img, angle):
-    center = (640, 480)
+    "Rotate 'img' of 'angle' degrees"
 
-    r = cv2.getRotationMatrix2D(center, angle, 1.0)
+    global colorSpace
+    if definition == vision_definitions.k4VGA:
+        center = (640, 480)
+    else:
+        print "Definition unsupported"    # But you can support it yourself!
+        return img
 
+    # Rotate img.
+    r = cv2.getRotationMatrix2D(center, float(angle), 1.0)
     dst = cv2.warpAffine(img, r, (1280, 960))
 
     return dst
 
-def getDirection(vectors):
-    global oldAverage
+
+def getAngle(vectors):
+    "Get the angle from horizontal of the square around the weekday"
+    global oldAngle
     directions = []
 
     # Get vectors coordinates instead of points coordinates.
@@ -107,9 +125,9 @@ def getDirection(vectors):
         if angle > 50:
             angle -= 90
         elif angle < -50:
-            angle += 90 
+            angle += 90
 
-        if (angle < 20 or angle > -20):
+        if (angle < 45 or angle > -45):
             directions.append(angle)
 
     # Average computation.
@@ -119,75 +137,85 @@ def getDirection(vectors):
         angleSum += directions[angle]
         average = angleSum/len(directions)
 
-    if average == 0:
-        average = oldAverage
-    else:
-        oldAverage = average
+    oldAngle = average
 
     return average
 
-try:
-    while True:
-        # Get the image.
-        img = camProxy.getImageRemote(followTheLineCam)
-        camProxy.releaseImage(followTheLineCam)
 
-        # Read parameters.
-        width = img[0]
-        height = img[1]
-        channels = img[2]
-        imgsrc = img[6]
+def maestroReading():
+    "Launch Maestro calendar reading, 2nd trial in Nao Challenge 2014"
+    try:
+        while True:
+            # Get the image.
+            img = camProxy.getImageRemote(readCalendarCam)
+            camProxy.releaseImage(readCalendarCam)
 
-        # « magical » conversion to OpenCV.
-        img = np.fromstring(imgsrc, dtype="uint8").reshape(height,
-                                                           width,
-                                                           channels)
+            # Read parameters.
+            width    = img[0]
+            height   = img[1]
+            channels = img[2]
+            imgsrc   = img[6]
 
-        # Conversions for color (red) detection.
-        hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            # « magical » conversion to OpenCV.
+            img = np.fromstring(imgsrc, dtype="uint8").reshape(height,
+                                                             width,
+                                                             channels)
 
-        # Red detection.
-        lower_red = np.array([ 0, 135, 135])
-        upper_red = np.array([10, 255, 255])
-        red = cv2.inRange(hsv_img, lower_red, upper_red)
-        # Filter red on original.
-        newImg = cv2.bitwise_and(img, img, mask=red)
+            # Conversions for color (red) detection.
+            hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        retval, newImg = cv2.threshold(newImg, 0, 1000, cv2.THRESH_BINARY)
+            # Red detection.
+            lower_red = np.array([ 0, 135, 135])
+            upper_red = np.array([5, 255, 255])
+            red = cv2.inRange(hsv_img, lower_red, upper_red)
+            # Filter red on original.
+            newImg = cv2.bitwise_and(img, img, mask=red)
 
-        houghImg = cv2.cvtColor(newImg, cv2.COLOR_BGR2GRAY)
-        houghImg = cv2.Canny(houghImg, 50, 150, apertureSize = 3)
-        lines = cv2.HoughLinesP(houghImg, 1, np.pi/180, 10, minLineLength=30, maxLineGap=5)
+            retval, newImg = cv2.threshold(newImg, 0, 1000, cv2.THRESH_BINARY)
 
-        try:
-            if lines.any():
-                angle = getDirection(lines)
+            houghImg = cv2.cvtColor(newImg, cv2.COLOR_BGR2GRAY)
+            houghImg = cv2.Canny(houghImg, 50, 250, apertureSize = 7)
+            houghImg = cv2.GaussianBlur(houghImg, (5, 5), 5)
+            lines = cv2.HoughLinesP(houghImg, 1, np.pi/180, 10,
+                                   minLineLength=30,
+                                   maxLineGap=5)
 
-                newImg = rotate(newImg, angle)
-        except AttributeError:
-            print "No line detected"
+            try:
+                if lines.any():
+                    angle = getAngle(lines)
+                    newImg = rotate(newImg, angle)
+            except AttributeError:
+                global oldAngle
+                newImg = rotate(newImg, oldAngle)
+                print "No square detected for rotation correction"
 
-        cv2.imwrite("/tmp/imgOCR.tiff", newImg)
+            cv2.imwrite("/tmp/imgOCR.tiff", newImg)
 
-        subprocess.call("/home/nao/naoqi/ocr.sh")
+            subprocess.call("/home/nao/naoqi/ocr.sh")
 
-        time.sleep(1)
+            time.sleep(1)
 
-        file = open('/home/nao/naoqi/output.txt', 'r')
-        toSay = file.readline()
-
-        if not (toSay.isspace() or toSay == ""):
-            print "Nao sees:",
+            # Read result of Tesseract treatment.
+            file = open('/home/nao/naoqi/output.txt', 'r')
+            toSay = file.readline()
+            print "Nao reads:",
             print toSay
             toSay = verification(toSay)
-            print "Nao say:",
-            print toSay
-            try:
-                TTSProxy.say(toSay)
-            except RuntimeError, e:
-                print e
-        else:
-            print "Nao can't read"
 
-except KeyboardInterrupt:
-        camProxy.unsubscribe("CalendarCam")
+            if toSay is not False:
+                print "Nao say:",
+                print toSay
+                try:
+                    TTSProxy.say(toSay)
+                    return toSay
+                except RuntimeError, e:
+                    print e
+            else:
+                print "Nao can't understand weekday"
+
+    except KeyboardInterrupt:
+            camProxy.unsubscribe("CalendarCam")
+
+
+if __name__ == "__main__":
+    exit (maestroReading())

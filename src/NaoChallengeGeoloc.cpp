@@ -2,7 +2,7 @@
 * *                  Nao Challenge 2014 Location Library                    * *
 * *************************************************************************** *
 * * File: NaoChallengeGeoloc.cpp                                            * *
-# *************************************************************************** *
+* *************************************************************************** *
 * * Creation:   2014-02-27                                                  * *
 * *                                                                         * *
 * * Team:       IUT de Cachan                                               * *
@@ -172,7 +172,7 @@ void NaoChallengeGeoloc::init()
         fCamProxy = boost::shared_ptr<ALVideoDeviceProxy>(new ALVideoDeviceProxy(getParentBroker()));
     }
     catch (const AL::ALError& e) {
-        qiLogError("vision.NaoChallengeGeoloc") 
+        qiLogError("vision.NaoChallengeGeoloc")
             << "Error while getting proxy on ALVideoDevice.  Error msg "
             << e.toString() << std::endl;
         NaoChallengeGeoloc::exit();
@@ -184,23 +184,23 @@ void NaoChallengeGeoloc::init()
         fMemoryProxy = boost::shared_ptr<ALMemoryProxy>(new ALMemoryProxy(getParentBroker()));
     }
     catch (const AL::ALError& e) {
-        qiLogError("memory.NaoChallengeGeoloc") 
+        qiLogError("memory.NaoChallengeGeoloc")
             << "Error while getting proxy on ALMemory.  Error msg "
             << e.toString() << std::endl;
         NaoChallengeGeoloc::exit();
         return;
     }
-  
+
     if(fCamProxy == NULL)
     {
         qiLogError("vision.NaoChallengeGeoloc")
-            << "Error while getting proxy on ALVideoDevice. Check ALVideoDevice is running." 
+            << "Error while getting proxy on ALVideoDevice. Check ALVideoDevice is running."
             << std::endl;
         NaoChallengeGeoloc::exit();
         return;
     }
 
-    qiLogInfo("vision.NaoChallengeGeoloc") 
+    qiLogInfo("vision.NaoChallengeGeoloc")
         << "Use registerToVideoDevice + "
            "saveImageLocal + unRegisterFromVideoDevice to save images."
         << std::endl;
@@ -304,17 +304,17 @@ void NaoChallengeGeoloc::sayText(const std::string &toSay)
 {
     std::cout << "Saying the phrase in the console..." << std::endl;
     std::cout << toSay << std::endl;
-  
+
     speechProxy->callVoid("setVolume", 0.55f);
 
     try
     {
         speechProxy->pCall("say", toSay);
     }
-  
+
     catch (const AL::ALError&)
     {
-        qiLogError("module.NaoChallengeGeoloc") 
+        qiLogError("module.NaoChallengeGeoloc")
             << "Could not get proxy to ALTextToSpeech" << std::endl;
     }
 }
@@ -330,7 +330,7 @@ void NaoChallengeGeoloc::onDatamatrixDetection(const std::string &key,
                                                const AL::ALValue &value,
                                                const AL::ALValue &message)
 {
-    // Update the global variable to signal datamatrix detection to 
+    // Update the global variable to signal datamatrix detection to
     // walkFromDmtxToDmtx() function.
     Datamatrix = value;
 }
@@ -352,7 +352,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     int fail = 0;                   // Number of loop without line detection.
     float distance = 0.0;           // Distance walked.
     time_t now;
-    AL::ALValue articulation = "HeadYaw"; 
+    AL::ALValue articulation = "HeadYaw";
 
     if(fMemoryProxy) // ALMemory proxy to get detected datamatrix value
     {
@@ -483,7 +483,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     {
         qiLogInfo("NaoChallengeGeoloc")
             << "------------ [ NEW LOOP ITERATION ] ------------" << endl;
-        
+
         qiLogInfo("NaoChallengeGeoloc")
             << "toDatamatrix = " << toDatamatrix
             << "\nDatamatrix = " << (std::string) Datamatrix
@@ -498,14 +498,18 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         std::string DatamatrixString = (std::string) Datamatrix ;
         ostringstream toDatamatrixString;
         toDatamatrixString << toDatamatrix ;
-        if (DatamatrixString == toDatamatrixString.str())
+        if ((DatamatrixString == toDatamatrixString.str()
+          && distanceMax != 0
+          && distanceMax < distance)
+         || (DatamatrixString == toDatamatrixString.str()
+          && distanceMax == 0))
         {
             ledsProxy->pCall("rasta",
                              (float) 8.0f);
             break;
         }
         // Reach destination
-        if (distanceMax < distance)
+        if (distanceMax != 0 && distanceMax < distance)
         {
             consigne = endAngle * CV_PI/180;
             moveProxy->pCall("moveTo",
@@ -522,7 +526,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         if (succeed)
         {
             // Find informations on line detected.
-            directionFromVectors(lines, averageX, averageAngle);           
+            directionFromVectors(lines, averageX, averageAngle);
 
             /* ********************* Correction Module ********************* */
 
@@ -621,6 +625,18 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                              (bool) true);
         }
     }
+
+    // Unsubscribe Video
+    // try
+    // {
+    //     if(fCamProxy) fCamProxy->unsubscribe(fVideoClientName);
+
+    //     fCamProxy.reset();
+    // }
+    // catch(const AL::ALError& e)
+    // {
+    //     qiLogError("vision.NaoChallengeGeoloc") <<  e.toString() << std::endl;
+    // }
 }
 
 
@@ -629,12 +645,12 @@ void NaoChallengeGeoloc::findLine(bool &succeed,
                                   long long &timeStamp)
 {
     cv::Mat dst, color_dst, hsv, whiteFilter ;
-    
+
     // Check a video module has been registered.
     if (!fRegisteredToVideoDevice)
     {
         throw ALError(getName(),
-                      "findLine()", 
+                      "findLine()",
                       "No video module is currently "
                       "registered! Call registerToVideoDevice() first.");
     }
@@ -657,7 +673,7 @@ void NaoChallengeGeoloc::findLine(bool &succeed,
     cv::cvtColor(ImgSrc, hsv, cv::COLOR_BGR2HSV);
 
     // Definition of white:
-    cv::inRange(hsv, cv::Scalar(0, 0, 255),
+    cv::inRange(hsv, cv::Scalar(0, 0, 240),
                      cv::Scalar(255, 255, 255), whiteFilter);
 
     // Filtering white:
@@ -745,7 +761,7 @@ void NaoChallengeGeoloc::directionFromVectors(cv::vector<cv::Vec4i> &lines,
             vectors[i] = 180 + vectors[i];
         }
 
-        // Keep safe from horizontal lines... 
+        // Keep safe from horizontal lines...
         if (vectors[i] > 150 || vectors[i] < 30)
         {
             vectors.erase(vectors.begin() + i);

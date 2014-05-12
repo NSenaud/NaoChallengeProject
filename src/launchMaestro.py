@@ -4,9 +4,9 @@
 # ########################################################################### #
 # #                          Nao Challenge 2014                             # #
 # ########################################################################### #
-# # File: launchLibNaoChallengeExample.py                                   # #
+# # File: launchMaestro.py                                                  # #
 # ########################################################################### #
-# # Creation:   2014-03-10                                                  # #
+# # Creation:   2014-05-07                                                  # #
 # #                                                                         # #
 # # Team:       IUT de Cachan                                               # #
 # #                                                                         # #
@@ -15,26 +15,35 @@
 # ########################################################################### #
 
 """
-    Simplest python script to lauch the NaoChallengeGeoloc module.
+    Launch Masetro trial of Nao Challenge 2014.
 """
 
+
+import sys
+import numpy as np                  # Numpy:  Maths library.
+import cv2                          # OpenCV: Visual recognition library.
+import vision_definitions           # Image definitions macros.
+
+# Nao's Libraries.
 from naoqi import ALProxy
-import vision_definitions
-import time
+
+# Calendar reading
+import getCalendarDay
 
 fromDmtx = 270
-toDmtx = 210
+toDmtx = 210 # Maestro
 
 
 IP="NaoCRIC.local"
-PORT=9559
+Port=9559
+
 
 def main():
     print 'START TESTING NaoChallengeGeoloc MODULE'
 
     try:
         print "Creating NaoChallengeGeoloc proxy to ", IP
-        NCProxy = ALProxy("NaoChallengeGeoloc",IP,PORT)
+        NCProxy = ALProxy("NaoChallengeGeoloc",IP,Port)
 
     except Exception,e:
         print "Error when creating NaoChallengeGeoloc proxy:"
@@ -43,7 +52,7 @@ def main():
 
     try:
         print "Creating ALMotion proxy to ", IP
-        AMProxy = ALProxy("ALMotion",IP,PORT)
+        AMProxy = ALProxy("ALMotion",IP,Port)
 
     except Exception,e:
         print "Error when creating ALMotion proxy:"
@@ -55,28 +64,7 @@ def main():
         NCProxy.registerToVideoDevice(vision_definitions.kVGA,
                                       vision_definitions.kBGRColorSpace)
 
-        # print "Walk from" + str(fromDmtx) + "to" + str(toDmtx)
         NCProxy.walkFromDmtxToDmtx(int(fromDmtx), int(toDmtx))
-
-        try:
-            while True:
-                print "Turn around"
-                AMProxy.moveTo(0, 0, (180*3.14/180))
-
-                print "Walk from 220 to 280"
-                NCProxy.walkFromDmtxToDmtx(220, 280)
-
-                print "Turn around"
-                AMProxy.moveTo(0, 0, (180*3.14/180))
-
-                print "Walk from 280 to 220"
-                NCProxy.walkFromDmtxToDmtx(280, 220)
-
-        except KeyboardInterrupt:
-            NCProxy.unRegisterFromVideoDevice()
-
-        print "unRegister from ALVideoDevice"
-        NCProxy.unRegisterFromVideoDevice()
 
     except KeyboardInterrupt:
         NCProxy.unRegisterFromVideoDevice()
@@ -88,5 +76,13 @@ def main():
         NCProxy.unRegisterFromVideoDevice()
         return(3)
 
+    try:
+        getCalendarDay.maestroReading()
+    except Exception,e:
+        print e
+
+    print "unRegister from ALVideoDevice"
+    NCProxy.unRegisterFromVideoDevice()
+
 if __name__ == "__main__":
-  exit (main()) 
+    exit (main())
