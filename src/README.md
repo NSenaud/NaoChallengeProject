@@ -3,7 +3,8 @@
 The NaoChallengeGeoloc module have been written for the 2014's Nao Challenge. It
 allows Nao to guide itself in trial's room. It uses a white line which guideNao
 accross the room, and [datamatrixes](http://en.wikipedia.org/wiki/Data_Matrix)
-on walls to allow Nao to know where he is in the room.
+on walls to allow Nao to know where he is in the room. Configuration files are
+in `~/naoqi/`.
 
 
 # Requirements
