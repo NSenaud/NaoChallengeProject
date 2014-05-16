@@ -371,7 +371,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         << "<-- Loading Configuration -->" << endl;
 
     /* Getting first movments from a lua config file */
-    const char* configFile = "/home/nao/naoqi/config.lua";
+    const char* configFile = "/home/nao/naoqi/NaoChallenge/config.lua";
     const char* configFunc = "getConfigFromDmtx";
     const char* endConfigFunc = "distanceDependingOnDmtx";
     const char* correctionConfigFunc = "getConfigForCorrectionModule";
@@ -457,10 +457,14 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             waitBetweenSteps        = (int)   lua_tonumber(L, -1);
             lua_pop(L, 4); // clear the stack.
         }
-
     }
 
     lua_close(L);
+
+    // Block the right arm when Nao keep the key in it hand.
+    if (toDatamatrix == 290) moveProxy->pCall("setWalkArmsEnabled",
+                                            true,
+                                            false);
 
     // Position Nao on te line depending on it position in the room.
     postureProxy->callVoid("goToPosture",
@@ -476,7 +480,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     qiLogInfo("NaoChallengeGeoloc")
         << "Angle (Radian): " << consigne << endl;
 
-    usleep(1000*4000);
+    usleep(1000*8000);
 
     /* *** Main loop *** */
     while(true)

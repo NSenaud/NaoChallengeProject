@@ -14,4 +14,4 @@
 # ########################################################################### #
 
 export TESSDATA_PREFIX=/usr/share
-tesseract -l fra /tmp/imgOCR.tiff /home/nao/naoqi/output
+tesseract -l fra /tmp/imgOCR.tiff /tmp/NaoChallengeOCRoutput

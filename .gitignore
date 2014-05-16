@@ -1,2 +1,4 @@
 # Python byte-compiled
 *.py[co]
+*.txt
+*.db

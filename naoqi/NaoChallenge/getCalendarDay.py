@@ -165,8 +165,8 @@ def maestroReading():
             hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
             # Red detection.
-            lower_red = np.array([ 0, 135, 135])
-            upper_red = np.array([5, 255, 255])
+            lower_red = np.array([ 0, 115, 115])
+            upper_red = np.array([10, 255, 255])
             red = cv2.inRange(hsv_img, lower_red, upper_red)
             # Filter red on original.
             newImg = cv2.bitwise_and(img, img, mask=red)
@@ -191,12 +191,12 @@ def maestroReading():
 
             cv2.imwrite("/tmp/imgOCR.tiff", newImg)
 
-            subprocess.call("/home/nao/naoqi/ocr.sh")
+            subprocess.call("/home/nao/naoqi/NaoChallenge/ocr.sh")
 
             time.sleep(1)
 
             # Read result of Tesseract treatment.
-            file = open('/home/nao/naoqi/output.txt', 'r')
+            file = open('/tmp/NaoChallengeOCRoutput.txt', 'r')
             toSay = file.readline()
             print "Nao reads:",
             print toSay
