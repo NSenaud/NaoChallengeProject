@@ -41,10 +41,10 @@ function distanceDependingOnDmtx( toDmtx )
     local yDist = 0 -- meters
 
     if toDmtx == 240 then -- Nao Gato
-        dst = 2.0
+        dst = 1.7
         angle = -90
         xDist = 0
-        yDist = 0.3
+        yDist = 0-.3
     end
 
     if toDmtx == 210 then -- Nao Maestro
