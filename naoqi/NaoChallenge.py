@@ -63,7 +63,7 @@ def main():
     try:
         NaoChallenge = NCMod.NCModule("NaoChallenge")
         log = logs.logs()
-        #NaoChallenge.start_memento()
+        NaoChallenge.start_memento()
         while True:
             time.sleep(1)
             pass

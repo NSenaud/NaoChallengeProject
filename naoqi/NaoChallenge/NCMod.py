@@ -161,7 +161,10 @@ class NCModule(ALModule):
         except:
             self.logs.display("NaoChallengeGeoloc proxy already registered","Warning")
         self.NCProxy.walkFromDmtxToDmtx(270,220)
+        self.logs.display("Datamatrix 220 reached","Good")
         self.NCProxy.unRegisterFromVideoDevice()
+        self.logs.display("NaoChallengeGeoloc proxy already unregistered","Good")
+
         
         # Aim the key
         self.RedTracker.startTracker()
@@ -202,7 +205,7 @@ class NCModule(ALModule):
         # Drop the Key
         while self.GetObject("KeyCase","RedDetection") != True :
             time.sleep(3)
-        self.motion.moveTo(-0.5, 0.0, 0.0)
+        self.motion.moveTo(-0.15, 0.0, 0.0)
 
         # Exit ...
         rightArmEnable  = True
@@ -212,8 +215,6 @@ class NCModule(ALModule):
         NaoChallenge.posture.goToPosture("Crouch", 1.0)
         NaoChallenge.motion.setStiffnesses("Body", 0.0)
         self.TactilStart()
-
-
 
 ##############################################################################
 ##                            start_maestro()                               ##
@@ -249,7 +250,6 @@ class NCModule(ALModule):
         NaoChallenge.motion.setStiffnesses("Body", 0.0)
         self.TactilStart()
   
-
 ##############################################################################
 ##                            start_gato()                                  ##
 ##                    A method to launch gato mod                           ##    
@@ -300,7 +300,7 @@ class NCModule(ALModule):
 
 ##############################################################################
 ##                        FunnyActions("day")                               ##
-##      A method to say something linked to the day                         ##    
+##      A method to say something linked to the day                         ##
 
 
     def FunnyActions(self, day = "Lundi"):
@@ -414,17 +414,21 @@ class NCModule(ALModule):
 
 
                     #self.motion.openHand("RHand")
-                    X = -0.1
+                    X = -0.3
                     V = 0.03
                     self.errors = 0
 
                     while self.errors<0.04:
 
-                        if X>0:
+                        if X>0.2:
                             V= -0.03
-                        elif X< -1.2:
+                        elif X< -0.4:
                             V=0.03
-                        self.motion.angleInterpolation(["RShoulderRoll"], [[X]], [[0.1]], True)
+                        
+                        self.motion.angleInterpolation(["RShoulderRoll", "RShoulderPitch", "RElbowRoll"],
+                                                        [[X], [- 0.2 + X], [1.2 - 1.8 * X]],
+                                                        [[0.1], [0.1], [0.1]],
+                                                        True)
                         time.sleep(0.1)
                         X= V+X
 
@@ -464,7 +468,7 @@ class NCModule(ALModule):
 #                   
                 elif objective == "KeyCase":
 
-                    for self.n in range(3):       
+                    for self.n in range(3):  ### TROUVER UN MOYEN DE DETECTER LA DISTANCE DU POT AVEC LES SONAR, CF "KEY"      
                         # Get sonars echos
                         #self.LeftSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
                         #self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
@@ -473,17 +477,12 @@ class NCModule(ALModule):
                         self.head = self.motion.getAngles("Head",True)
                         self.head.reverse()
                         self.headyaw = self.head.pop()
-                        self.motion.moveToward(0.7, 0.3, self.headyaw*3)                        
+                        self.motion.moveToward(0.7, 0.3, self.headyaw/2.0)                        
                         pass
 
                     self.motion.stopMove()
-############################
-                    self.tts.say("suis-je bien face à la boîte ?")
-                    time.sleep(3)
-############################   
-
-                    self.NCMotion.DropTheKey()   # this line use a method in timelines.py which provide tables used after
-                    
+                    time.sleep(1)
+                    self.NCMotion.DropTheKey()     
                     self.motion.angleInterpolation(names, keys, times, True)
 
                     return True                   
@@ -538,7 +537,6 @@ class NCModule(ALModule):
 #
             elif objective == "Dropper":
                 return False
-
 
 ##############################################################################
 ##                            EventsInit()                                  ##
@@ -680,7 +678,7 @@ class TimelinesModule():
 
         names.append("RShoulderRoll")
         times.append([ 0.36000, 0.80000])
-        keys.append([ -1.16742, -0.1])
+        keys.append([ -1.16742, -0.3])
 
         names.append("RWristYaw")
         times.append([ 0.36000, 0.80000])
