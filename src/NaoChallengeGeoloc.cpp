@@ -467,9 +467,9 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                                             false);
 
     // Position Nao on te line depending on it position in the room.
-    postureProxy->callVoid("goToPosture",
-                           (std::string) "StandInit",
-                           1.0f);
+    // postureProxy->callVoid("goToPosture",
+    //                        (std::string) "StandInit",
+    //                        1.0f);
 
     consigne = startAngle * CV_PI/180;    // Conversion in radians.
     moveProxy->pCall("moveTo",
@@ -630,17 +630,17 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
         }
     }
 
-    // Unsubscribe Video
-    // try
-    // {
-    //     if(fCamProxy) fCamProxy->unsubscribe(fVideoClientName);
+    Unsubscribe Video
+    try
+    {
+        if(fCamProxy) fCamProxy->unsubscribe(fVideoClientName);
 
-    //     fCamProxy.reset();
-    // }
-    // catch(const AL::ALError& e)
-    // {
-    //     qiLogError("vision.NaoChallengeGeoloc") <<  e.toString() << std::endl;
-    // }
+        fCamProxy.reset();
+    }
+    catch(const AL::ALError& e)
+    {
+        qiLogError("vision.NaoChallengeGeoloc") <<  e.toString() << std::endl;
+    }
 }
 
 
