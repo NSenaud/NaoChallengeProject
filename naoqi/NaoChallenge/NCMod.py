@@ -133,10 +133,10 @@ class NCModule(ALModule):
 
         # Prepare Nao.
         self.posture.goToPosture("StandInit", 1.0)
-        self.logs.display("Nao is going to posture StandInit")        
+        self.logs.display("Nao is going to posture StandInit","Good")        
         
         self.EventsInit()
-        self.logs.display("tactil initialisation")
+        self.logs.display("tactil initialisation","Good")
 
         # Ready!
         print ("--------------------------------------------------------------------------")
@@ -301,20 +301,7 @@ class NCModule(ALModule):
 ##############################################################################
 ##                        FunnyActions("day")                               ##
 ##      A method to say something linked to the day                         ##    
-##                                                                          ##
-##      Return a boolean (True) when the objective is over                  ##
-##                                                                          ##
-##      The first given argument selects the objective and must be          ##
-##      one of these srtings :                                              ##
-##                  - "Key" (default)                                       ##
-##                  - "KeyCase"                                             ##
-##                  - "Dropper"                                             ##
-##                                                                          ##
-##      The second given argument selects the way to get closer to the key  ##                                                    
-##      and must be one of these strings :                                  ##
-##                  - "RedDetection" (default)                              ##
-##                  - "Datamatrix"                                          ##
-##                                                                          ##
+
 
     def FunnyActions(self, day = "Lundi"):
 

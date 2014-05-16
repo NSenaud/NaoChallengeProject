@@ -205,11 +205,11 @@ def maestroReading():
             if toSay is not False:
                 print "Nao say:",
                 print toSay
-                try:
-                    TTSProxy.say(toSay)
-                    return toSay
-                except RuntimeError, e:
-                    print e
+                #try:
+                #    TTSProxy.say(toSay)
+                return toSay
+                #except RuntimeError, e:
+                #    print e
             else:
                 print "Nao can't understand weekday"
 
