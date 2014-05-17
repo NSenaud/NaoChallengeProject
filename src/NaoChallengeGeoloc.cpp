@@ -349,6 +349,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     float oldAverageAngle = 0.f;    // Line's direction at last loop.
     float consigne;                 // Direction (in Radians)
     float oldConsigne = 0;          // Direction gave at last loop.
+    float headAngle = 0;
     int fail = 0;                   // Number of loop without line detection.
     float distance = 0.0;           // Distance walked.
     time_t now;
@@ -546,6 +547,11 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             qiLogInfo("NaoChallengeGeoloc")
                 << "Line's relative position (in pixel): " << averageX << endl;
 
+            // Get head angle to subtract from line direction.
+            headAngle = moveProxy->("getAngles",
+                                   "HeadYaw",
+                                   true);
+
             if (averageX > lineHysteresisLevel)
             {
                 qiLogInfo("NaoChallengeGeoloc")
@@ -568,6 +574,7 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                 qiLogInfo("NaoChallengeGeoloc")
                     << "Nao is on the line" << endl;
 
+                averageAngle -= headAngle;
                 averageAngle = (averageAngle + oldAverageAngle)/2;
             }
 
