@@ -19,7 +19,7 @@ function launchDistribution()
     os.execute("rfcomm connect hci0 20:13:11:12:05:89 &")
 
     tries = 0
-    repeat 
+    repeat
         wSerialBT = io.open("/dev/rfcomm0", "w")
         rSerialBT = io.open("/dev/rfcomm0", "r")
         print("Connecting...")
@@ -51,6 +51,17 @@ function launchDistribution()
 
         print("Waiting...")
         socket.select(nil, nil, 1)
+
+        if(answer == 102) then
+            weight = rSerialBT:read()
+            rSerialBT:flush()
+
+            print("Weight: " ..weight .. "g")
+            socket.select(nil, nil, 1)
+
+            weightLogFile = io.open("/tmp/weight.txt", "w")
+            weightLogFile:write(weight)
+        end
     until tonumber(answer) == 200
 
     print("Finished!")
