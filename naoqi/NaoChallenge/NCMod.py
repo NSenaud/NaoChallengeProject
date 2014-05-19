@@ -40,7 +40,6 @@ from optparse import OptionParser
 import logs
 import ihm
 import followTheLine
-import timelines
 import getCalendarDay
 
 # Aldebaran library for Nao.
@@ -414,7 +413,7 @@ class NCModule(ALModule):
 
 
                     #self.motion.openHand("RHand")
-                    X = -0.3
+                    X = -0.2
                     V = 0.03
                     self.errors = 0
 
@@ -426,7 +425,7 @@ class NCModule(ALModule):
                             V=0.03
                         
                         self.motion.angleInterpolation(["RShoulderRoll", "RShoulderPitch", "RElbowRoll"],
-                                                        [[X], [- 0.2 + X], [1.2 - 1.8 * X]],
+                                                        [[X], [- 0.15 + X], [0.84 - 1.8 * X]],
                                                         [[0.1], [0.1], [0.1]],
                                                         True)
                         time.sleep(0.1)
@@ -468,17 +467,17 @@ class NCModule(ALModule):
 #                   
                 elif objective == "KeyCase":
 
-                    for self.n in range(3):  ### TROUVER UN MOYEN DE DETECTER LA DISTANCE DU POT AVEC LES SONAR, CF "KEY"      
+                    #for self.n in range(3):  ### TROUVER UN MOYEN DE DETECTER LA DISTANCE DU POT AVEC LES SONAR, CF "KEY"   
+                    while self.distance > 0.29:   
                         # Get sonars echos
-                        #self.LeftSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
-                        #self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
-                        #self.distance = (self.LeftSonar + self.RightSonar)/2.0
-                        time.sleep(2)
+                        self.LeftSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
+                        self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
+                        self.distance = (self.LeftSonar + self.RightSonar)/2.0
+                        time.sleep(0.1)
                         self.head = self.motion.getAngles("Head",True)
                         self.head.reverse()
                         self.headyaw = self.head.pop()
-                        self.motion.moveToward(0.7, 0.3, self.headyaw/2.0)                        
-                        pass
+                        self.motion.moveToward(0.7, 0.2, self.headyaw/2.0)                        
 
                     self.motion.stopMove()
                     time.sleep(1)
