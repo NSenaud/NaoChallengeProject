@@ -30,9 +30,6 @@ from naoqi import ALProxy
 # Calendar reading
 from NaoChallenge import getCalendarDay 
 
-fromDmtx = 270
-toDmtx = 210 # Maestro
-
 
 IP="NaoCRIC.local"
 Port=9559
@@ -64,7 +61,8 @@ def main():
         NCProxy.registerToVideoDevice(vision_definitions.kVGA,
                                       vision_definitions.kBGRColorSpace)
 
-        NCProxy.walkFromDmtxToDmtx(int(fromDmtx), int(toDmtx))
+        print "Walking to Calendar"
+        NCProxy.walkFromDmtxToDmtx(270, 210)
 
     except KeyboardInterrupt:
         NCProxy.unRegisterFromVideoDevice()
@@ -83,6 +81,7 @@ def main():
 
     print "unRegister from ALVideoDevice"
     NCProxy.unRegisterFromVideoDevice()
+
 
 if __name__ == "__main__":
     exit (main())

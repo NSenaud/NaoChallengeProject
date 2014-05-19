@@ -631,16 +631,16 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     }
 
     // Unsubscribe Video
-    try
-    {
-        if(fCamProxy) fCamProxy->unsubscribe(fVideoClientName);
+    // try
+    // {
+    //     if(fCamProxy) fCamProxy->unsubscribe(fVideoClientName);
 
-        fCamProxy.reset();
-    }
-    catch(const AL::ALError& e)
-    {
-        qiLogError("vision.NaoChallengeGeoloc") <<  e.toString() << std::endl;
-    }
+    //     fCamProxy.reset();
+    // }
+    // catch(const AL::ALError& e)
+    // {
+    //     qiLogError("vision.NaoChallengeGeoloc") <<  e.toString() << std::endl;
+    // }
 }
 
 
