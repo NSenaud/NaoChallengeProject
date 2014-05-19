@@ -28,7 +28,7 @@ import vision_definitions           # Image definitions macros.
 from naoqi import ALProxy
 
 # Calendar reading
-import getCalendarDay
+from NaoChallenge import getCalendarDay 
 
 fromDmtx = 270
 toDmtx = 210 # Maestro
