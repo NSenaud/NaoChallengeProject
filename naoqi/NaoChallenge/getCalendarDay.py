@@ -174,11 +174,11 @@ def maestroReading():
             retval, newImg = cv2.threshold(newImg, 0, 1000, cv2.THRESH_BINARY)
 
             houghImg = cv2.cvtColor(newImg, cv2.COLOR_BGR2GRAY)
-            houghImg = cv2.Canny(houghImg, 50, 250, apertureSize = 7)
-            houghImg = cv2.GaussianBlur(houghImg, (5, 5), 5)
+            houghImg = cv2.Canny(houghImg, 50, 250, apertureSize = 3)
+            # houghImg = cv2.GaussianBlur(houghImg, (5, 5), 5)
             lines = cv2.HoughLinesP(houghImg, 1, np.pi/180, 10,
-                                   minLineLength=30,
-                                   maxLineGap=5)
+                                    minLineLength=30,
+                                    maxLineGap=5)
 
             try:
                 if lines.any():

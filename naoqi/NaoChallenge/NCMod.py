@@ -231,7 +231,8 @@ class NCModule(ALModule):
         try:
             self.NCProxy.registerToVideoDevice(definition, colors)
         except:
-            self.logs.display("NaoChallengeGeoloc proxy already registered","Warning")
+            self.logs.display("NaoChallengeGeoloc proxy already registered",
+                              "Warning")
         self.NCProxy.walkFromDmtxToDmtx(270, 210)
         self.logs.display("Calendar Reach","Good")
 
@@ -263,7 +264,7 @@ class NCModule(ALModule):
         self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
         self.distance = (self.LeftSonar + self.RightSonar)/2.0
         time.sleep(0.2)
-        while self.distance > 0.4:
+        while self.distance > 0.3:
             self.LeftSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
             self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
             self.distance = (self.LeftSonar + self.RightSonar)/2.0
