@@ -29,6 +29,7 @@
 
 import sys
 import time
+import math
 import numpy as np                  # Numpy:  Maths library.
 import cv2                          # OpenCV: Visual recognition library.
 import vision_definitions           # Image definitions macros.
@@ -60,7 +61,6 @@ names = list()
 times = list()
 keys = list()
 
-
 # Global objects:
 myBroker = None                     # Broker to keep connexion with Nao. 
 memory = None                       # memories objects to recall events.
@@ -69,9 +69,7 @@ MiddleTactil = None
 RearTactil = None
 RemoteRx = None
 
-
-
-# ################################# Class ################################### #
+# ################################ Classes ################################## #
 
 class NCModule(ALModule):
     """docstring for Nao Challenge Module"""
@@ -142,7 +140,6 @@ class NCModule(ALModule):
         print ("--------------------------------------------------------------------------")
         self.logs.display("Module ready", "Good")
 
-
 ##############################################################################
 ##                            start_memento()                               ##
 ##                    A method to launch memento mod                        ##    
@@ -166,12 +163,16 @@ class NCModule(ALModule):
 
         
         # Aim the key
+        try:
+            motion.angleInterpolation(["HeadYaw"], [[ 0.0]], [[ 0.5]], True);
+        except BaseException, err:
+            print err
         self.RedTracker.startTracker()
         while self.RedTracker.getPosition() == [0.0, 0.0, 0.0]:
-            self.logs.display("The key isn't visible")
+            self.logs.display("The key isn't visible","Error")
             while self.RedTracker.getPosition() == [0.0, 0.0, 0.0]:
                 time.sleep(0.01)
-        self.logs.display("The key is visible")
+        self.logs.display("The key is visible","Good")
 
         # Get the Key
         while self.GetObject("Key","RedDetection") != True :
@@ -185,6 +186,8 @@ class NCModule(ALModule):
         self.motion.moveTo(-0.3 , 0.0 , 0.0)
        
         # Walk where the Key is suppose to be
+        self.NCMotion.LowerTheRightArm()
+        self.motion.angleInterpolation(names, keys, times, True)
         self.NCProxy.registerToVideoDevice(definition, colors)
         self.NCProxy.walkFromDmtxToDmtx(220,290)
         self.logs.display("Key Case Reach")        
@@ -207,12 +210,13 @@ class NCModule(ALModule):
         self.motion.moveTo(-0.15, 0.0, 0.0)
 
         # Exit ...
+        leftArmEnable = True
         rightArmEnable  = True
         self.motion.setWalkArmsEnabled(leftArmEnable, rightArmEnable)
         self.NCProxy.unRegisterFromVideoDevice()
-        log.display("sits down")
-        NaoChallenge.posture.goToPosture("Crouch", 1.0)
-        NaoChallenge.motion.setStiffnesses("Body", 0.0)
+        self.logs.display("sits down")
+        self.posture.goToPosture("Crouch", 1.0)
+        self.motion.setStiffnesses("Body", 0.0)
         self.TactilStart()
 
 ##############################################################################
@@ -231,7 +235,44 @@ class NCModule(ALModule):
         except:
             self.logs.display("NaoChallengeGeoloc proxy already registered","Warning")
         self.NCProxy.walkFromDmtxToDmtx(270, 210)
-        self.logs.display("Calendar Reach")
+        self.logs.display("Calendar Reach","Good")
+
+        # Get the Nao realy in front o the caendar
+        self.RedTracker.startTracker()
+        time.sleep(6)
+        self.head = self.motion.getAngles("Head",True)
+        self.head.reverse()
+        self.headyaw = self.head.pop()
+        self.i = 0
+        while (math.fabs(self.headyaw)>0.1 or float(self.i<100)):
+            time.sleep(0.1)
+            self.i = self.i + 1
+            self.head = self.motion.getAngles("Head",True)
+            self.head.reverse()
+            self.headyaw = self.head.pop()
+            if self.headyaw > 0.0:
+                self.motion.moveToward(0.0, 0.7, 0.0)
+            elif self.headyaw < 0.0:
+                self.motion.moveToward(0.0, -0.7, 0.0)
+            else:
+                self.logs.display("There is an unespected error, the HeadYaw could be negative or not in the right type", "Error")
+        self.motion.stopMove()
+
+        # Get the Nao closer to the calendar
+        self.sonarProxy.subscribe("myApplication")
+        self.LeftSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
+        time.sleep(0.2)
+        self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
+        self.distance = (self.LeftSonar + self.RightSonar)/2.0
+        time.sleep(0.2)
+        while self.distance > 0.4:
+            self.LeftSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
+            self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
+            self.distance = (self.LeftSonar + self.RightSonar)/2.0
+            time.sleep(0.1)
+            self.motion.moveToward(0.7, 0.0, 0.0)
+        self.motion.stopMove()
+        self.logs.display("Calendar realy reached", "Good")
 
         # Read the Calendar
         try:
@@ -244,9 +285,9 @@ class NCModule(ALModule):
 
         # Exit ...
         self.NCProxy.unRegisterFromVideoDevice()
-        log.display("sits down")
-        NaoChallenge.posture.goToPosture("Crouch", 1.0)
-        NaoChallenge.motion.setStiffnesses("Body", 0.0)
+        self.logs.display("sits down")
+        self.posture.goToPosture("Crouch", 1.0)
+        self.motion.setStiffnesses("Body", 0.0)
         self.TactilStart()
   
 ##############################################################################
@@ -279,8 +320,7 @@ class NCModule(ALModule):
 
         FlagIR = False
 
-        while (FlagIR == False | 
-            RemoteRx.getData("Device/SubDeviceList/IR/LIRC/Remote/Key/Sensor/Value/") != "power"):
+        while (FlagIR == False | RemoteRx.getData("Device/SubDeviceList/IR/LIRC/Remote/Key/Sensor/Value/") != "power"):
 
             self.RemoteTx.sendRemoteKey("Sony_RM-ED009-12", "power")
             self.logs.display("power message send")
@@ -292,9 +332,9 @@ class NCModule(ALModule):
         self.logs.display("Dropper activated")
 
         
-        log.display("sits down")
-        NaoChallenge.posture.goToPosture("Crouch", 1.0)
-        NaoChallenge.motion.setStiffnesses("Body", 0.0)
+        self.logs.display("sits down")
+        self.posture.goToPosture("Crouch", 1.0)
+        self.motion.setStiffnesses("Body", 0.0)
         self.TactilStart()
 
 ##############################################################################
@@ -344,7 +384,7 @@ class NCModule(ALModule):
 ##                                                                          ##
     def GetObject(self, objective = "Key", way = "RedDetection"):
 
-##      
+      
         global names
         global times
         global keys
@@ -369,7 +409,7 @@ class NCModule(ALModule):
                 self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
                 self.distance = (self.LeftSonar + self.RightSonar)/2.0
                 time.sleep(0.2)
-#
+
                 # Go to the red object
                 if objective == "Key":     
                     try:             
@@ -425,7 +465,7 @@ class NCModule(ALModule):
                             V=0.03
                         
                         self.motion.angleInterpolation(["RShoulderRoll", "RShoulderPitch", "RElbowRoll"],
-                                                        [[X], [- 0.15 + X], [0.84 - 1.8 * X]],
+                                                        [[X], [- 0.15 + X], [1.0 - X]],
                                                         [[0.1], [0.1], [0.1]],
                                                         True)
                         time.sleep(0.1)
@@ -464,10 +504,9 @@ class NCModule(ALModule):
                     time.sleep(4)
                     
                     return True
-#                   
+                  
                 elif objective == "KeyCase":
 
-                    #for self.n in range(3):  ### TROUVER UN MOYEN DE DETECTER LA DISTANCE DU POT AVEC LES SONAR, CF "KEY"   
                     while self.distance > 0.29:   
                         # Get sonars echos
                         self.LeftSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
@@ -477,7 +516,7 @@ class NCModule(ALModule):
                         self.head = self.motion.getAngles("Head",True)
                         self.head.reverse()
                         self.headyaw = self.head.pop()
-                        self.motion.moveToward(0.7, 0.2, self.headyaw/2.0)                        
+                        self.motion.moveToward(0.7, 0.6, self.headyaw/2.0)                        
 
                     self.motion.stopMove()
                     time.sleep(1)
@@ -485,7 +524,7 @@ class NCModule(ALModule):
                     self.motion.angleInterpolation(names, keys, times, True)
 
                     return True                   
-#
+
                 elif objective == "Dropper":
                     while self.distance > 0.29:                
                         # Get sonars echos
@@ -525,15 +564,15 @@ class NCModule(ALModule):
                 while True:
                     time.sleep(1)
                 
-##
+
         elif way == "Datamatrix":
-#
+
             if objective == "Key":
                 return False
-#
+
             elif objective == "KeyCase":
                 return False
-#
+
             elif objective == "Dropper":
                 return False
 
@@ -570,7 +609,6 @@ class NCModule(ALModule):
         RemoteRx.subscribeToEvent("InfraRedRemoteKeyReceived",
                                     self.name,
                                     "IR_receiver")
-
 
 ##############################################################################
 ##                     TactilStart() / TactilStop()                         ##
@@ -613,11 +651,10 @@ class NCModule(ALModule):
         self.logs.display( memory.getData("Device/SubDeviceList/IR/LIRC/Remote/Key/Sensor/Value/") )
         FlagIR = True
 
-
-
-
-
-
+##############################################################################
+##                          TimelinesModule()                               ##
+##                     A class to hide timelines lists                      ##    
+##                                                                          ##           
 
 class TimelinesModule():
     def __init__(self):
@@ -683,9 +720,35 @@ class TimelinesModule():
         times.append([ 0.36000, 0.80000])
         keys.append([ 0.07973, 0.03371])
 
+    def LowerTheRightArm(self):
+        global names
+        global times
+        global keys
+        
+        del names[:]
+        del times[:]
+        del keys[:]
 
+        names.append("RElbowRoll")
+        times.append    ([ 1.0])
+        keys.append     ([ 0.6])
 
+        names.append("RElbowYaw")
+        times.append    ([ 1.0])
+        keys.append     ([ 1.5])
 
+        names.append("RShoulderPitch")
+        times.append    ([ 1.0])
+        keys.append     ([ 1.7])
+
+        names.append("RShoulderRoll")
+        times.append    ([ 1.0])
+        keys.append     ([-0.3])
+
+        names.append("RWristYaw")
+        times.append    ([ 1.0])
+        keys.append     ([ 1.0])
+        
     def DropTheKey(self):
 
         global names
@@ -697,30 +760,31 @@ class TimelinesModule():
         del keys[:]
 
         names.append("RElbowRoll")
-        times.append([ 0.5, 4.0])
-        keys.append ([ 1.5, 0.6])
+        times.append    ([ 0.5, 4.0])
+        keys.append     ([ 1.5, 0.6])
 
         names.append("RElbowYaw")
-        times.append([ 0.5, 4.0])
-        keys.append ([ 1.2, -1.3])
+        times.append    ([ 0.5, 4.0])
+        keys.append     ([ 1.2,-1.3])
 
         names.append("RHand")
-        times.append([ 0.5, 4.0, 4.5])
-        keys.append ([ 0.0, 0.0, 1.0])
+        times.append    ([ 0.5, 4.0, 4.5])
+        keys.append     ([ 0.0, 0.0, 1.0])
 
         names.append("RShoulderPitch")
-        times.append([ 0.5, 4.0])
-        keys.append ([ 0.1, -0.0])
+        times.append    ([ 0.5, 4.0])
+        keys.append     ([ 0.1,-0.0])
 
         names.append("RShoulderRoll")
-        times.append([ 0.5, 4.0])
-        keys.append ([ -1.2, -0.0])
+        times.append    ([ 0.5, 4.0])
+        keys.append     ([-1.2,-0.0])
 
         names.append("RWristYaw")
-        times.append([ 0.5, 4.0])
-        keys.append ([ 0.1, 1.8])
+        times.append    ([ 0.5, 4.0])
+        keys.append     ([ 0.1, 1.8])
 
+##############################################################################
 
+##############################################################################
 
-#    def PressTheButton(self):
-
+##############################################################################
