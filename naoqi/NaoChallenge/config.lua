@@ -48,8 +48,8 @@ function distanceDependingOnDmtx( toDmtx )
     end
 
     if toDmtx == 210 then -- Nao Maestro
-        dst = 1.7
-        angle = 75
+        dst = 1.85
+        angle = 65
         xDist = 0
         yDist = -0.2
     end
