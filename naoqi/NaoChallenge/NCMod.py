@@ -264,7 +264,7 @@ class NCModule(ALModule):
         self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
         self.distance = (self.LeftSonar + self.RightSonar)/2.0
         time.sleep(0.2)
-        while self.distance > 0.3:
+        while self.distance > 0.29:
             self.LeftSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
             self.RightSonar = self.memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
             self.distance = (self.LeftSonar + self.RightSonar)/2.0
