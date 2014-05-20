@@ -340,6 +340,19 @@ void NaoChallengeGeoloc::onDatamatrixDetection(const std::string &key,
 void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                                             const int &toDatamatrix)
 {
+    /* SUMMARY:
+        1. Subscribe to Datamatrix event
+        2. Load configuration
+        3. Config robot and go to starting point
+        4. Main Loop
+            a. Check if Nao is arrived
+            b. If not arrived, analyse a new picture
+            c. If succeed to find a line, find its position and direction
+            d. ... Then walk !
+            e. ... Else, try to find a line in the other direction.
+    */
+            
+
     bool succeed;                   // Is a line detected?
     cv::vector<cv::Vec4i> lines;    // Line's vectors position.
     long long timeStamp;            // Timestamp of analysed picture.
@@ -351,8 +364,11 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
     float oldConsigne = 0;          // Direction gave at last loop.
     int fail = 0;                   // Number of loop without line detection.
     float distance = 0.0;           // Distance walked.
-    time_t now;
     AL::ALValue articulation = "HeadYaw";
+
+
+    // 1. SUBSCRIBE TO DATAMATRIX EVENT
+    // --------------------------------
 
     if(fMemoryProxy) // ALMemory proxy to get detected datamatrix value
     {
@@ -360,6 +376,10 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                                        "NaoChallengeGeoloc",
                                        "onDatamatrixDetection");
     }
+
+
+    // 2. LOAD CONFIGURATION
+    // ---------------------
 
     qiLogInfo("vision.NaoChallengeGeoloc")
         << "Module registered as " << fVideoClientName << std::endl;
@@ -461,6 +481,10 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
 
     lua_close(L);
 
+
+    // 3. CONFIG ROBOT AND GO TO STARTING POINT
+    // ----------------------------------------
+
     // Block the right arm when Nao keep the key in it hand.
     if (toDatamatrix == 290) moveProxy->pCall("setWalkArmsEnabled",
                                             true,
@@ -482,9 +506,15 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
 
     usleep(1000*8000);
 
-    /* *** Main loop *** */
+
+    // 4. MAIN LOOP
+    // ------------
+
     while(true)
     {
+        // a. CHECK IF NAO IS ARRIVED
+        // --------------------------
+
         qiLogInfo("NaoChallengeGeoloc")
             << "------------ [ NEW LOOP ITERATION ] ------------" << endl;
 
@@ -523,8 +553,15 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             break;
         }
 
+        // b. IF NOT ARRIVED, ANALYSE A NEW PICTURE
+        // ----------------------------------------
+
         // Analyse a new picture with OpenCV to find the line.
         findLine(succeed, lines, timeStamp);
+
+
+        // c. IF SUCCEED TO FIND A LINE, FIND ITS POSITION AND DIRECTION
+        // -------------------------------------------------------------
 
         // Succeed if any line is detected on the picture.
         if (succeed)
@@ -596,6 +633,10 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
             qiLogInfo("NaoChallengeGeoloc")
                 << "Consigne (Radian): " << consigne << endl;
 
+
+            // d. ... THEN WALK !
+            // ------------------
+
             // Rotate head.
             moveProxy->pCall("angleInterpolation",
                              articulation,
@@ -618,6 +659,9 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
 
             usleep(1000 * waitBetweenSteps);   // 1000 * ms.
         }
+
+        // e. ... ELSE, TRY TO FIND A LINE IN THE OTHER DIRECTION.
+        // -------------------------------------------------------
         else
         {
             ++fail;
@@ -629,18 +673,6 @@ void NaoChallengeGeoloc::walkFromDmtxToDmtx(const int &fromDatamatrix,
                              (bool) true);
         }
     }
-
-    // Unsubscribe Video
-    // try
-    // {
-    //     if(fCamProxy) fCamProxy->unsubscribe(fVideoClientName);
-
-    //     fCamProxy.reset();
-    // }
-    // catch(const AL::ALError& e)
-    // {
-    //     qiLogError("vision.NaoChallengeGeoloc") <<  e.toString() << std::endl;
-    // }
 }
 
 
