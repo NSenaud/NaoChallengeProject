@@ -10,7 +10,9 @@
 # #                                                                         # #
 # # Team:       IUT de Cachan                                               # #
 # #                                                                         # #
-# # Authors:    Nicolas SAREMBAUD                                           # #
+# # Authors:    Nicolas SENAUD                                              # #
+# #             Pierre-Guillaume LEGUAY                                     # #
+# #             Nicolas SAREMBAUD                                           # #
 # #                                                                         # #
 # ########################################################################### #
 
