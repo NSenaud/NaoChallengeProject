@@ -55,7 +55,7 @@ function distanceDependingOnDmtx( toDmtx )
     end
 
     if toDmtx == 220 then -- Nao Memento
-        dst = 2.2
+        dst = 2.0
     end
 
     if toDmtx == 290 then -- Nao Memento

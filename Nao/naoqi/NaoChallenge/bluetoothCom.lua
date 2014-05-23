@@ -52,16 +52,16 @@ function launchDistribution()
         print("Waiting...")
         socket.select(nil, nil, 1)
 
-        if(answer == 102) then
-            weight = rSerialBT:read()
-            rSerialBT:flush()
+        -- if(answer == 102) then
+        --     weight = rSerialBT:read()
+        --     rSerialBT:flush()
 
-            print("Weight: " ..weight .. "g")
-            socket.select(nil, nil, 1)
+        --     print("Weight: " ..weight .. "g")
+        --     socket.select(nil, nil, 1)
 
-            weightLogFile = io.open("/tmp/weight.txt", "w")
-            weightLogFile:write(weight)
-        end
+        --     weightLogFile = io.open("/tmp/weight.txt", "w")
+        --     weightLogFile:write(weight)
+        -- end
     until tonumber(answer) == 200
 
     print("Finished!")

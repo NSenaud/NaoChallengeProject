@@ -87,7 +87,7 @@ def verification(proposition):
 
     if bestDay[1] < 7 and len(bestDay[0]) > 5:
         return bestDay[0]
-    elif bestDay[1] < 5:
+    elif bestDay[1] < 4:
         return bestDay[0]
     else:
         return False
@@ -165,20 +165,21 @@ def maestroReading():
             hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
             # Red detection.
-            lower_red = np.array([ 0, 115, 115])
+            lower_red = np.array([ 0, 135, 135])
             upper_red = np.array([10, 255, 255])
             red = cv2.inRange(hsv_img, lower_red, upper_red)
             # Filter red on original.
             newImg = cv2.bitwise_and(img, img, mask=red)
 
             retval, newImg = cv2.threshold(newImg, 0, 1000, cv2.THRESH_BINARY)
+            # retval, newImg = cv2.threshold(newImg, 127, 255, 0)
 
-            houghImg = cv2.cvtColor(newImg, cv2.COLOR_BGR2GRAY)
-            houghImg = cv2.Canny(houghImg, 50, 250, apertureSize = 3)
-            # houghImg = cv2.GaussianBlur(houghImg, (5, 5), 5)
+            newImg = cv2.cvtColor(newImg, cv2.COLOR_BGR2GRAY)
+            houghImg = cv2.Canny(newImg, 50, 250, apertureSize = 3)
             lines = cv2.HoughLinesP(houghImg, 1, np.pi/180, 10,
                                     minLineLength=30,
                                     maxLineGap=5)
+
 
             try:
                 if lines.any():
@@ -189,11 +190,24 @@ def maestroReading():
                 newImg = rotate(newImg, oldAngle)
                 print "No square detected for rotation correction"
 
+            findDay = newImg.copy()
+            contours, hier = cv2.findContours(findDay,
+                                              cv2.RETR_LIST,
+                                              cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+                if 2000 < cv2.contourArea(cnt) < 100000:
+                    print "Found a square with a weekday!"
+                    (x,y,w,h) = cv2.boundingRect(cnt)
+                    cv2.rectangle(newImg,(0,0),(1080,y),255,-1)
+                    cv2.rectangle(newImg,(0,0),(x,720),255,-1)
+                    cv2.rectangle(newImg,(0,y+h),(1080,720),255,-1)
+                    cv2.rectangle(newImg,(x+w,0),(1080,720),255,-1)
+
             cv2.imwrite("/tmp/imgOCR.tiff", newImg)
 
             subprocess.call("/home/nao/naoqi/NaoChallenge/ocr.sh")
 
-            time.sleep(1)
+            time.sleep(0.1)
 
             # Read result of Tesseract treatment.
             file = open('/tmp/NaoChallengeOCRoutput.txt', 'r')

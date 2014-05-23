@@ -703,7 +703,7 @@ void NaoChallengeGeoloc::findLine(bool &succeed,
     timeStamp = imageIn->getTimeStamp();
     const int seconds = (int)(timeStamp/1000000LL);
 
-    ImgSrc.data = imageIn->getData();;
+    ImgSrc.data = imageIn->getData();
 
     // Conversion from BGR colorspace to HSV colorspace:
     cv::cvtColor(ImgSrc, hsv, cv::COLOR_BGR2HSV);
