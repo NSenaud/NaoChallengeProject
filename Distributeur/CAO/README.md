@@ -1,0 +1,1 @@
+Le distributeur mécatronique est une structure en bois, réalisée uniquement avec des plaques de 3mm d’épaisseur  découpée au laser.Il est composé de 5 sous-ensembles
